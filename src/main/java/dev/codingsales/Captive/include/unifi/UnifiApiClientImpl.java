@@ -9,6 +9,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import dev.codingsales.Captive.include.unifi.dto.LoginDTO;
@@ -16,6 +17,7 @@ import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
 import dev.codingsales.Captive.include.unifi.dto.RequestGuestDTO;
 import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
 
+@Component
 public class UnifiApiClientImpl implements UnifiApiClient {
     /** The logger. */
     private static Logger logger = Logger.getLogger(UnifiApiClientImpl.class);

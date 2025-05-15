@@ -49,7 +49,7 @@ public class CaptivePortalController {
         logger.debug(String.format(LoggerConstants.CALLED_CONTROLLER, "CaptivePortalController", "authorizeDevice",
                 request.toString()));
         if (!request.getAcceptTou().booleanValue()) {
-            throw new MissingParametersException("You should accept term of use for surfing");
+            throw new MissingParametersException("Você precisa aceitar os termos para navegar.");
         }
 
         return new ResponseEntity<Object>(new SuccessResponseDTO(HttpStatus.OK.value(), HttpStatus.OK.toString(),

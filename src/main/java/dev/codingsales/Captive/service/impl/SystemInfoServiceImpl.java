@@ -10,7 +10,7 @@ import dev.codingsales.Captive.service.SystemInfoService;
 import dev.codingsales.Captive.util.SystemInfoHelper;
 
 @Service
-public class SystemInfoServiceImpl {
+public class SystemInfoServiceImpl implements SystemInfoService{
     /**
      * Gets the system memory.
      *
