@@ -24,10 +24,8 @@ public class Privilege {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
     /** The name. */
     private String name;
-
     /** The roles. */
     @ManyToMany(mappedBy = "privileges")
     private Collection<Role> roles;

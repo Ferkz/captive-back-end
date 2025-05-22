@@ -37,9 +37,4 @@ public class CaptivePortalApplication implements WebMvcConfigurer{
 	 *
 	 * @param registry the registry
 	 */
-	public void addCorsMappings(CorsRegistry registry) {
-		registry.addMapping("/**").allowedHeaders("*").allowedOrigins("*")
-				.allowedMethods("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS").allowCredentials(true);
-	}
-
 }

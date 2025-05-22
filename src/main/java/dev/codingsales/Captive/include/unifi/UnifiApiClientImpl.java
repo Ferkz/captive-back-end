@@ -1,354 +1,180 @@
 package dev.codingsales.Captive.include.unifi;
 
-import org.apache.logging.log4j.util.Strings;
-import org.jboss.logging.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
-
-import dev.codingsales.Captive.include.unifi.dto.LoginDTO;
-import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
-import dev.codingsales.Captive.include.unifi.dto.RequestGuestDTO;
+import dev.codingsales.Captive.include.unifi.dto.ClientDTO; // Assuming you have this from previous suggestions
+import dev.codingsales.Captive.include.unifi.dto.MetaDTO;
 import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.*;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.RestTemplate;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
-@Component
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.io.UnsupportedEncodingException;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+
+@Service
 public class UnifiApiClientImpl implements UnifiApiClient {
-    /** The logger. */
-    private static Logger logger = Logger.getLogger(UnifiApiClientImpl.class);
-
-    /** The rest template. */
-    @Autowired
-    private RestTemplate restTemplate;
-
-    /** The cookie. */
-    private String cookie = Strings.EMPTY;
-
-    /** The is logged. */
-    private boolean isLogged = false;
-
-    /** The username. */
-    private String username;
-
-    /** The password. */
-    private String password;
-
-    /** The site name. */
-    private String siteName;
-
-    /** The base url. */
+    private static final Logger logger = LoggerFactory.getLogger(UnifiApiClientImpl.class);
+    @Value("${unifi.api.baseurl}") // Should be: https://10.0.2.0/proxy/network
     private String baseUrl;
-
-    /**
-     * Instantiates a new unifi api client impl.
-     *
-     * @param username the username
-     * @param password the password
-     * @param siteName the site name
-     * @param baseUrl  the base url
-     */
-    public UnifiApiClientImpl(@Value("${unifiApi.controller.username}") String username,
-                              @Value("${unifiApi.controller.password}") String password,
-                              @Value("${unifiApi.controller.sitename}") String siteName,
-                              @Value("${unifiApi.controller.url}") String baseUrl) {
-        super();
-        this.username = username;
-        this.password = password;
-        this.siteName = siteName;
-        this.baseUrl = baseUrl;
+    @Value("${unifi.api.key}") // Your X-API-KEY
+    private String apiKey;
+    private final RestTemplate restTemplate;
+    private final ObjectMapper objectMapper;
+    public UnifiApiClientImpl(RestTemplateBuilder restTemplateBuilder, ObjectMapper objectMapper) {
+        this.restTemplate = restTemplateBuilder.build();
+        this.objectMapper = objectMapper;
     }
-
-    /**
-     * Finalize.
-     */
-    public void finalize() {
-        if (isLogged()) {
-            this.logout();
-        }
-    }
-
-    /**
-     * Gets the cookie.
-     *
-     * @return the cookie
-     */
-    public String getCookie() {
-        return cookie;
-    }
-
-    /**
-     * Sets the cookie.
-     *
-     * @param cookie the new cookie
-     */
-    public void setCookie(String cookie) {
-        this.cookie = cookie;
-    }
-
-    /**
-     * Gets the username.
-     *
-     * @return the username
-     */
-    public String getUsername() {
-        return username;
-    }
-
-    /**
-     * Sets the username.
-     *
-     * @param username the new username
-     */
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    /**
-     * Gets the password.
-     *
-     * @return the password
-     */
-    public String getPassword() {
-        return password;
-    }
-
-    /**
-     * Sets the password.
-     *
-     * @param password the new password
-     */
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    /**
-     * Gets the site name.
-     *
-     * @return the site name
-     */
-    public String getSiteName() {
-        return siteName;
-    }
-
-    /**
-     * Sets the site name.
-     *
-     * @param siteName the new site name
-     */
-    public void setSiteName(String siteName) {
-        this.siteName = siteName;
-    }
-
-    /**
-     * Gets the base url.
-     *
-     * @return the base url
-     */
-    public String getBaseUrl() {
-        return baseUrl;
-    }
-
-    /**
-     * Sets the base url.
-     *
-     * @param baseUrl the new base url
-     */
-    public void setBaseUrl(String baseUrl) {
-        this.baseUrl = baseUrl;
-    }
-
-    /**
-     * Checks if is logged.
-     *
-     * @return true, if is logged
-     */
-    public boolean isLogged() {
-        return this.isLogged;
-    }
-
-    /**
-     * Login.
-     *
-     * @return true, if successful
-     */
-    @Scheduled(fixedDelayString = "${jespresso.controller.cookie.update.delay}", initialDelay = 15000)
     @Override
-    public boolean login() {
-        try {
-            if (this.isLogged) {
-                return true;
-            }
-            ResponseEntity<ResponseDTO> response = this.restTemplate.postForEntity(this.baseUrl + "/api/login",
-                    new LoginDTO(this.username, this.password), ResponseDTO.class);
-            logger.info("Unifi Controller returned " + response.toString());
-            this.isLogged = response.getStatusCode().is2xxSuccessful()
-                    && response.getBody().getMeta().getRc().equalsIgnoreCase("ok");
-            this.setCookie(response.getHeaders().getFirst(HttpHeaders.SET_COOKIE));
-            return this.isLogged;
-        } catch (RuntimeException e) {
-            logger.error(
-                    UnifiApiClientImpl.class.getName() + ": login(): cannot log in with controller: " + e.getMessage());
-            throw new RuntimeException(
-                    UnifiApiClientImpl.class.getName() + ": login(): cannot login with controller: " + e.getMessage());
+    public boolean login() { // This method is from the X-API-KEY version.
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            logger.error("Verifique a chave API");
+            return false;
         }
+        logger.info("Login via API realizado");
+        return true;
     }
 
-    /**
-     * Logout.
-     *
-     * @return true, if successful
-     */
+    private HttpHeaders createApiHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.setAccept(Collections.singletonList(MediaType.APPLICATION_JSON));
+        if (apiKey == null || apiKey.trim().isEmpty()) {
+            logger.error("UniFi API Key (X-API-KEY) is not configured.");
+            throw new IllegalStateException("UniFi API Key (X-API-KEY) is not configured.");
+        }
+        headers.set("X-API-KEY", apiKey);
+        return headers;
+    }
+
     @Override
-    public boolean logout() {
+    public ClientDTO getClientByMac(String siteId, String macAddress) {
+        String encodedFilter;
         try {
-            if (!this.isLogged) {
-                return true;
-            }
-            ResponseEntity<ResponseDTO> response = this.restTemplate.getForEntity(this.baseUrl + "/api/logout",
-                    ResponseDTO.class);
-            logger.info("Unifi Controller returned " + response.toString());
-            this.isLogged = response.getStatusCode().is2xxSuccessful()
-                    && response.getBody().getMeta().getRc().equalsIgnoreCase("ok");
-            this.setCookie(Strings.EMPTY);
-            return this.isLogged;
-        } catch (RuntimeException e) {
-            logger.error(UnifiApiClientImpl.class.getName() + ": logout(): cannot log out with controller: "
-                    + e.getMessage());
-            throw new RuntimeException(UnifiApiClientImpl.class.getName()
-                    + ": login(): cannot log out with controller: " + e.getMessage());
+            // The filter format from UniFi API docs: <property>.<function>(<arguments>)
+            String filterValue = String.format("macAddress.eq('%s')", macAddress.toLowerCase());
+            encodedFilter = URLEncoder.encode(filterValue, StandardCharsets.UTF_8.toString());
+        } catch (UnsupportedEncodingException e) {
+            logger.error("Error encoding filter for MAC address {}: {}", macAddress, e.getMessage(), e);
+            return null;
         }
-    }
 
-    /**
-     * Authorize guest.
-     *
-     * @param macAddress    the mac address
-     * @param minutes       the minutes
-     * @param downloadSpeed the download speed
-     * @param uploadSpeed   the upload speed
-     * @param quota         the quota
-     * @return true, if successful
-     */
+        // Using the /integration/v1 path
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients?filter=" + encodedFilter;
+        HttpEntity<Void> entity = new HttpEntity<>(createApiHeaders());
+
+        try {
+            logger.debug("Fetching UniFi client by MAC. URL: {}", url);
+            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+
+            if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
+                Map<String, Object> responseMap = objectMapper.readValue(responseEntity.getBody(), new TypeReference<Map<String, Object>>() {});
+                Object dataObject = responseMap.get("data");
+
+                if (dataObject instanceof List) {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> clientDataList = (List<Map<String, Object>>) dataObject;
+                    if (!clientDataList.isEmpty()) {
+                        ClientDTO client = objectMapper.convertValue(clientDataList.get(0), ClientDTO.class);
+                        logger.info("Client found: ID (UUID)={}, MAC={}", client.getId(), client.getMacAddress());
+                        return client;
+                    } else {
+                        logger.warn("No client found with MAC {} in site {}. Response body: {}", macAddress, siteId, responseEntity.getBody());
+                    }
+                } else {
+                    logger.warn("UniFi API response for getClientByMac did not contain a 'data' list or it was not a list. MAC: {}, Site: {}. Response body: {}", macAddress, siteId, responseEntity.getBody());
+                }
+            } else {
+                logger.error("Failed to fetch client by MAC {}. Status: {}, Response: {}",
+                        macAddress, responseEntity.getStatusCode(), responseEntity.getBody());
+            }
+        } catch (HttpClientErrorException e) {
+            logger.error("HTTP error fetching UniFi client by MAC {}: {} - Response: {}", macAddress, e.getStatusCode(), e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            logger.error("Unexpected error fetching UniFi client by MAC {}: {}", macAddress, e.getMessage(), e);
+        }
+        return null;
+    }
     @Override
-    public boolean authorizeGuest(String macAddress, Long minutes, Long downloadSpeed, Long uploadSpeed, Long quota, String apMac) {
-        try {
-            if (!this.isLogged) {
-                login();
-            }
-            HttpHeaders requestHeaders = new HttpHeaders();
-            requestHeaders.add("Cookie", this.getCookie());
-            RequestAuthorizeGuestDTO body = new RequestAuthorizeGuestDTO(macAddress, minutes, uploadSpeed,
-                    downloadSpeed, quota, apMac);
-            HttpEntity<RequestAuthorizeGuestDTO> requestEntity = new HttpEntity<>(body, requestHeaders);
-            String url = this.baseUrl + "/api/s/" + siteName + "/cmd/stamgr";
-            ResponseEntity<ResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity,
-                    ResponseDTO.class);
-            logger.info("Unifi Controller returned " + response.toString());
-            return response.getStatusCode().is2xxSuccessful()
-                    && response.getBody().getMeta().getRc().equalsIgnoreCase("ok");
-        } catch (RuntimeException e) {
-            logger.error(UnifiApiClientImpl.class.getName()
-                    + ": authorizeGuest(): cannot send request to remote controller: " + e.getMessage());
-            throw new RuntimeException(UnifiApiClientImpl.class.getName()
-                    + ": authorizeGuest(): cannot send request to remote controller: " + e.getMessage());
-        }
-    }
+    public ResponseDTO executeClientAction(String siteId, String clientIdUuid,
+                                                                dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO payload) {
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients/" + clientIdUuid + "/actions";
+        HttpEntity<dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO> entity =
+                new HttpEntity<>(payload, createApiHeaders());
 
-    /**
-     * Un authorize guest.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    @Override
-    public boolean unAuthorizeGuest(String macAddress) {
-        try {
-            if (!this.isLogged) {
-                login();
-            }
-            String url = this.baseUrl + "/api/s/" + siteName + "/cmd/stamgr";
-            ResponseEntity<ResponseDTO> response = sendRequestGuestAction(url, "unauthorize-guest", macAddress);
-            logger.info("Unifi Controller returned " + response.toString());
-            return response.getStatusCode().is2xxSuccessful()
-                    && response.getBody().getMeta().getRc().equalsIgnoreCase("ok");
-        } catch (RuntimeException e) {
-            logger.error(UnifiApiClientImpl.class.getName()
-                    + ": unauthorizeGuest(): cannot send request to remote controller: " + e.getMessage());
-            throw new RuntimeException(UnifiApiClientImpl.class.getName()
-                    + ": unauthorizeGuest(): cannot send request to remote controller: " + e.getMessage());
-        }
-    }
+        dev.codingsales.Captive.include.unifi.dto.ResponseDTO customResponseDto =
+                new dev.codingsales.Captive.include.unifi.dto.ResponseDTO();
 
-    /**
-     * Block.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    @Override
-    public boolean block(String macAddress) {
         try {
-            if (!this.isLogged) {
-                login();
-            }
-            String url = this.baseUrl + "/api/s/" + siteName + "/cmd/stamgr";
-            ResponseEntity<ResponseDTO> response = sendRequestGuestAction(url, "block-sta", macAddress);
-            logger.info("Unifi Controller returned " + response.toString());
-            return response.getStatusCode().is2xxSuccessful()
-                    && response.getBody().getMeta().getRc().equalsIgnoreCase("ok");
-        } catch (RuntimeException e) {
-            logger.error(UnifiApiClientImpl.class.getName() + ": block(): cannot send request to remote controller: "
-                    + e.getMessage());
-            throw new RuntimeException(UnifiApiClientImpl.class.getName()
-                    + ": block(): cannot send request to remote controller: " + e.getMessage());
-        }
-    }
+            // The action string for logging comes from the payload itself.
+            String actionForLogging = payload.getAction(); // Assuming RequestAuthorizeGuestDTOIntegrationV1 has getAction()
 
-    /**
-     * Unblock.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    @Override
-    public boolean unblock(String macAddress) {
-        try {
-            if (!this.isLogged) {
-                login();
-            }
-            String url = this.baseUrl + "/api/s/" + siteName + "/cmd/stamgr";
-            ResponseEntity<ResponseDTO> response = sendRequestGuestAction(url, "unblock-sta", macAddress);
-            logger.info("Unifi Controller returned " + response.toString());
-            return response.getStatusCode().is2xxSuccessful()
-                    && response.getBody().getMeta().getRc().equalsIgnoreCase("ok");
-        } catch (RuntimeException e) {
-            logger.error(UnifiApiClientImpl.class.getName() + ": unblock(): cannot send request to remote controller: "
-                    + e.getMessage());
-            throw new RuntimeException(UnifiApiClientImpl.class.getName()
-                    + ": unblock(): cannot send request to remote controller: " + e.getMessage());
-        }
-    }
+            logger.debug("Executing UniFi client action. URL: {}, ClientID (UUID): {}, Action: {}, Payload: {}",
+                    url, clientIdUuid, actionForLogging, payload);
 
-    /**
-     * Send request guest action.
-     *
-     * @param url        the url
-     * @param cmd        the cmd
-     * @param macAddress the mac address
-     * @return the response entity
-     */
-    private ResponseEntity<ResponseDTO> sendRequestGuestAction(String url, String cmd, String macAddress) {
-        HttpHeaders requestHeaders = new HttpHeaders();
-        requestHeaders.add("Cookie", this.getCookie());
-        RequestGuestDTO body = new RequestGuestDTO(cmd, macAddress);
-        HttpEntity<RequestGuestDTO> requestEntity = new HttpEntity<>(body, requestHeaders);
-        ResponseEntity<ResponseDTO> response = restTemplate.exchange(url, HttpMethod.POST, requestEntity,
-                ResponseDTO.class);
-        return response;
+            ResponseEntity<Map<String, Object>> apiResponse = restTemplate.exchange(
+                    url,
+                    HttpMethod.POST,
+                    entity,
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
+
+            MetaDTO meta = new MetaDTO();
+            if (apiResponse.getStatusCode() == HttpStatus.OK && apiResponse.getBody() != null) {
+                logger.info("Action {} executed successfully for client UUID {} in site {}. UniFi Response: {}",
+                        actionForLogging, clientIdUuid, siteId, apiResponse.getBody());
+                meta.setRc("ok");
+                meta.setMsg("Ação realizada com sucesso na UNIFI.");
+                customResponseDto.setDataList(Collections.singletonList(apiResponse.getBody()));
+
+
+            } else {
+                logger.error("Falha ao executar ação {} for client UUID {}. Status: {}, UniFi Response: {}",
+                        actionForLogging, clientIdUuid, apiResponse.getStatusCode(), apiResponse.getBody());
+                meta.setRc("error");
+                meta.setMsg("Failed to execute UniFi action: " + apiResponse.getStatusCode());
+                if (apiResponse.getBody() != null) {
+                    // customResponseDto.setData(apiResponse.getBody()); // If ResponseDTO.data is Map
+                    customResponseDto.setDataList(Collections.singletonList(apiResponse.getBody()));
+                }
+            }
+            customResponseDto.setMeta(meta);
+        } catch (HttpClientErrorException e) {
+            logger.error("HTTP error executing UniFi client action for UUID {}: {} - Response: {}",
+                    clientIdUuid, e.getStatusCode(), e.getResponseBodyAsString(), e);
+            MetaDTO meta = new MetaDTO("error", "HTTP error: " + e.getStatusCode() + " - " +
+                    e.getResponseBodyAsString().substring(0, Math.min(e.getResponseBodyAsString().length(), 250)) + "...");
+            customResponseDto.setMeta(meta);
+            try {
+                // Check if response body is not empty and is valid JSON before parsing
+                String responseBodyString = e.getResponseBodyAsString();
+                if (responseBodyString != null && !responseBodyString.trim().isEmpty() &&
+                        responseBodyString.trim().startsWith("{") && responseBodyString.trim().endsWith("}")) {
+                    Map<String, Object> errorBodyMap = objectMapper.readValue(responseBodyString, new TypeReference<Map<String, Object>>() {});
+                    // customResponseDto.setData(errorBodyMap); // If ResponseDTO.data is Map
+                    customResponseDto.setDataList(Collections.singletonList(errorBodyMap));
+
+                } else {
+                    logger.warn("Erro no corpo da requisição, não e um json valido ou está vazio.");
+                }
+            } catch (Exception parseEx) {
+                logger.warn("Could not parse JSON error response body from UniFi API: {}", parseEx.getMessage());
+            }
+        } catch (Exception e) {
+            logger.error("Erro inesperado na unifi para o UUID {}: {}", clientIdUuid, e.getMessage(), e);
+            MetaDTO meta = new MetaDTO("error", "Erro inesperado: " + e.getMessage());
+            customResponseDto.setMeta(meta);
+        }
+        return customResponseDto;
     }
 }

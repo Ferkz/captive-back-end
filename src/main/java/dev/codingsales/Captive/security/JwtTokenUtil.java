@@ -5,6 +5,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
@@ -18,6 +20,7 @@ public class JwtTokenUtil implements Serializable {
     public static final long JWT_TOKEN_VALIDITY = 5 * 60 * 60;
     @Value("${jwt.secret}")
     private String secret;
+
 
     /**
      * Gets the username from token.
@@ -83,9 +86,14 @@ public class JwtTokenUtil implements Serializable {
      * @param userDetails the user details
      * @return the string
      */
+
     // generate token for user
+    private static final Logger logger = LoggerFactory.getLogger(JwtTokenUtil.class);
+
     public String generateToken(UserDetails userDetails) {
         Map<String, Object> claims = new HashMap<>();
+        String token = doGenerateToken(claims, userDetails.getUsername());
+        logger.info("JWT gerado para usuário {}: {}", userDetails.getUsername(), token);
         return doGenerateToken(claims, userDetails.getUsername());
     }
 

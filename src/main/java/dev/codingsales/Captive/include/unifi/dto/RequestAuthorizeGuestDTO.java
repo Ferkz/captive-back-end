@@ -1,150 +1,32 @@
 package dev.codingsales.Captive.include.unifi.dto;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-public class RequestAuthorizeGuestDTO extends RequestGuestDTO {
-    /** The minutes. */
-    private Long minutes;
+import lombok.Builder; // If you use Lombok builder
+import lombok.Data; // If you use Lombok
+import lombok.NoArgsConstructor;
+import lombok.AllArgsConstructor;
 
-    /** The up. */
-    private Long up;
+@Data // Includes getters, setters, toString, equals, hashCode
+@Builder
+@AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+public class RequestAuthorizeGuestDTO {
+    @JsonProperty("action")
+    private String action; // e.g., "AUTHORIZE_GUEST_ACCESS", "UNAUTHORIZE_GUEST_ACCESS"
 
-    /** The down. */
-    private Long down;
+    @JsonProperty("timeLimitMinutes")
+    private Integer timeLimitMinutes;
 
-    /** The bytes. */
-    private Long bytes;
+    @JsonProperty("dataUsageLimitMBytes")
+    private Long dataUsageLimitMBytes;
 
+    @JsonProperty("rxRateLimitKbps")
+    private Integer rxRateLimitKbps;
 
-    /** The ap mac. */
-    @JsonProperty("ap_mac")
-    private String apMac;
-
-    /**
-     * Gets the ap mac.
-     *
-     * @return the ap mac
-     */
-    public String getApMac() {
-        return apMac;
-    }
+    @JsonProperty("txRateLimitKbps")
+    private Integer txRateLimitKbps;
 
 
-    /**
-     * Sets the ap mac.
-     *
-     * @param apMac the new ap mac
-     */
-    public void setApMac(String apMac) {
-        this.apMac = apMac;
-    }
-
-    /**
-     * Gets the minutes.
-     *
-     * @return the minutes
-     */
-    public Long getMinutes() {
-        return minutes;
-    }
-
-    /**
-     * Sets the minutes.
-     *
-     * @param minutes the new minutes
-     */
-    public void setMinutes(Long minutes) {
-        this.minutes = minutes;
-    }
-
-    /**
-     * Gets the up.
-     *
-     * @return the up
-     */
-    public Long getUp() {
-        return up;
-    }
-
-    /**
-     * Sets the up.
-     *
-     * @param up the new up
-     */
-    public void setUp(Long up) {
-        this.up = up;
-    }
-
-    /**
-     * Gets the down.
-     *
-     * @return the down
-     */
-    public Long getDown() {
-        return down;
-    }
-
-    /**
-     * Sets the down.
-     *
-     * @param down the new down
-     */
-    public void setDown(Long down) {
-        this.down = down;
-    }
-
-    /**
-     * Gets the bytes.
-     *
-     * @return the bytes
-     */
-    public Long getBytes() {
-        return bytes;
-    }
-
-    /**
-     * Sets the bytes.
-     *
-     * @param bytes the new bytes
-     */
-    public void setBytes(Long bytes) {
-        this.bytes = bytes;
-    }
-
-    /**
-     * Instantiates a new request authorize guest DTO.
-     */
-    public RequestAuthorizeGuestDTO() {
-        super();
-    }
-
-    /**
-     * Instantiates a new request authorize guest DTO.
-     *
-     * @param mac the mac
-     * @param minutes the minutes
-     * @param up the up
-     * @param down the down
-     * @param bytes the bytes
-     * @param apMac the ap mac
-     */
-    public RequestAuthorizeGuestDTO(String mac, Long minutes, Long up, Long down, Long bytes, String apMac) {
-        super("authorize-guest", mac);
-        this.minutes = minutes;
-        this.up = up;
-        this.down = down;
-        this.bytes = bytes;
-        this.apMac = apMac;
-    }
-
-
-    /**
-     * To string.
-     *
-     * @return the string
-     */
-    @Override
-    public String toString() {
-        return "RequestAuthorizeGuestDTO [minutes=" + minutes + ", up=" + up + ", down=" + down + ", bytes=" + bytes
-                + ", apMac=" + apMac + "]";
-    }
+    // Add other fields as per the API documentation if needed
 }

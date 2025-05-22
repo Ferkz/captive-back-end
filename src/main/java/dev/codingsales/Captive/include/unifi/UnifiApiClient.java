@@ -1,54 +1,30 @@
 package dev.codingsales.Captive.include.unifi;
 
+import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
+import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
+import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+
+import java.util.Map;
+
 public interface UnifiApiClient {
     /**
-     * Login.
      *
-     * @return true, if successful
+     * @return
      */
-    public boolean login();
-
+    boolean login();
     /**
-     * Logout.
-     *
-     * @return true, if successful
+     * *
+     * @param siteId
+     * @param macAddress
+     * @return
      */
-    public boolean logout();
-
+    ClientDTO getClientByMac(String siteId, String macAddress);
     /**
-     * Authorize guest.
      *
-     * @param macAddress the mac address
-     * @param minutes the minutes
-     * @param downloadSpeed the download speed
-     * @param uploadSpeed the upload speed
-     * @param quota the quota
-     * @return true, if successful
+     * @param siteId o ID do site UNIFi
+     * @param clientIdUuid UUID do cliente
+     * @param payload o corpo da requisicao contendo acao e parametros
+     * @return
      */
-    public boolean authorizeGuest(String macAddress, Long minutes, Long downloadSpeed, Long uploadSpeed, Long quota, String apClient);
-
-    /**
-     * Un authorize guest.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    public boolean unAuthorizeGuest(String macAddress);
-
-
-    /**
-     * Block.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    public boolean block(String macAddress);
-
-    /**
-     * Unblock.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    public boolean unblock(String macAddress);
+    ResponseDTO executeClientAction(String siteId, String clientIdUuid, RequestAuthorizeGuestDTO payload);
 }

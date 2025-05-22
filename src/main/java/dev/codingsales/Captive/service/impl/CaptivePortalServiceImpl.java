@@ -1,89 +1,118 @@
 package dev.codingsales.Captive.service.impl;
 
 import java.sql.Timestamp;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.jboss.logging.Logger;
+// Corrected: Use org.slf4j.Logger
+import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import dev.codingsales.Captive.dto.captivelportal.AuthorizeDeviceRequestDTO;
+import dev.codingsales.Captive.dto.captivelportal.AuthorizeDeviceRequestDTO; // This is your existing DTO from the controller
 import dev.codingsales.Captive.dto.captivelportal.SessionInfoDTO;
 import dev.codingsales.Captive.entity.Session;
 import dev.codingsales.Captive.exeption.NoContentException;
 import dev.codingsales.Captive.include.unifi.UnifiApiClient;
+import dev.codingsales.Captive.include.unifi.dto.ClientDTO; // To get the UUID
+import dev.codingsales.Captive.include.unifi.dto.ResponseDTO; // UniFi API client response
 import dev.codingsales.Captive.service.CaptivePortalService;
 import dev.codingsales.Captive.service.SessionService;
-import dev.codingsales.Captive.util.LoggerConstants;
+import dev.codingsales.Captive.util.LoggerConstants; // Assuming this has NOT_FOUND_EXCEPTION
 
 @Service
-public class CaptivePortalServiceImpl implements CaptivePortalService{
-    /** The logger. */
-    private final Logger logger = Logger.getLogger(CaptivePortalServiceImpl.class);
+public class CaptivePortalServiceImpl implements CaptivePortalService {
+    private static final Logger logger = LoggerFactory.getLogger(CaptivePortalServiceImpl.class); // SLF4J Logger
 
-    /** The session service. */
     @Autowired
     private SessionService sessionService;
 
-    /** The unifi api client. */
     @Autowired
-    private UnifiApiClient unifiApiClient;
+    private UnifiApiClient unifiApiClient; // This will be the new X-API-KEY implementation
 
-    /** The session duration minutes. */
-    @Value("${unifiApi.controller.session.duration}")
-    private Long sessionDurationMinutes;
+    // Values from your application.properties, ensure they are correctly prefixed if needed
+    // e.g. unifi.default.auth.minutes VS unifiApi.controller.session.duration
+    // I'll use the ones that seem to match the /integration/v1/ payload best.
+    @Value("${unifi.default.auth.minutes}") // Using this for consistency with my UnifiAuthService
+    private Integer sessionDurationMinutes; // Changed to Integer to match RequestAuthorizeGuestDTOIntegrationV1
 
-    /** The download speed. */
-    @Value("${unifiApi.controller.session.downloadSpeed}")
-    private Long downloadSpeed;
+    @Value("${unifi.default.auth.download.kbps:#{null}}") // Allow null if not set
+    private Integer downloadSpeedKbps;
 
-    /** The upload speed. */
-    @Value("${unifiApi.controller.session.uploadSpeed}")
-    private Long uploadSpeed;
+    @Value("${unifi.default.auth.upload.kbps:#{null}}") // Allow null if not set
+    private Integer uploadSpeedKbps;
 
-    /** The quota. */
-    @Value("${unifiApi.controller.session.quota}")
-    private Long quota;
+    @Value("${unifi.default.auth.data.limit.mb:#{null}}") // Allow null if not set
+    private Long dataUsageLimitMBytes; // Renamed for clarity
 
-    /** The session hidden minutes. */
-    @Value("${unifiApi.controller.session.hiddenMinutes}")
+    // These seem to be for calculating local session expiry, not directly for UniFi payload
+    @Value("${unifiApi.controller.session.hiddenMinutes:0}") // Default to 0 if not present
     private Long sessionHiddenMinutes;
 
-    /** The session block minutes. */
-    @Value("${unifiApi.controller.session.blockMinutes}")
+    @Value("${unifiApi.controller.session.blockMinutes:0}") // Default to 0 if not present
     private Long sessionBlockMinutes;
 
-    /**
-     * Authorize device.
-     *
-     * @param request the request
-     * @return the session info DTO
-     * @throws Exception the exception
-     */
+
     @Override
     public SessionInfoDTO authorizeDevice(AuthorizeDeviceRequestDTO request) throws Exception {
+        // AuthorizeDeviceRequestDTO is from your existing controller. It contains macAddress, email etc.
+        logger.info("Authorizing device: MAC={}, IP={}, AP_MAC={}, Email={}",
+                request.getMacAddress(), request.getIpAddress(), request.getAccessPointMacAddress(), request.getEmail());
+
         if (this.sessionService.existsByDeviceMac(request.getMacAddress())) {
+            logger.info("Device {} already has an active session. Returning existing session info.", request.getMacAddress());
             return this.getSessionInfo(request.getMacAddress());
         }
 
-        if (unifiApiClient.authorizeGuest(request.getMacAddress(), sessionDurationMinutes, downloadSpeed, uploadSpeed,
-                quota, request.getAccessPointMacAddress())) {
-            Session session = generateSession(request.getMacAddress(), request.getIpAddress(),
-                    request.getAccessPointMacAddress(), request.getBrowser(), request.getOperatingSystem());
+        // Step 1: Get Client UUID from UniFi
+        ClientDTO unifiClient = unifiApiClient.getClientByMac(
+                "default", // Assuming "default" site, or get from properties: @Value("${unifi.default.site.id}")
+                request.getMacAddress()
+        );
+
+        if (unifiClient == null || unifiClient.getId() == null) {
+            logger.error("Could not retrieve UniFi client ID (UUID) for MAC: {}. Authorization cannot proceed.", request.getMacAddress());
+            throw new RuntimeException("Failed to find device " + request.getMacAddress() + " on UniFi controller. Ensure device is connected.");
+        }
+        String clientIdUuid = unifiClient.getId();
+
+        // Step 2: Prepare payload for UniFi client action API
+        RequestAuthorizeGuestDTO unifiPayload = RequestAuthorizeGuestDTO.builder()
+                .action("AUTHORIZE_GUEST_ACCESS")
+                .timeLimitMinutes(this.sessionDurationMinutes)
+                .rxRateLimitKbps(this.downloadSpeedKbps)
+                .txRateLimitKbps(this.uploadSpeedKbps)
+                .dataUsageLimitMBytes(this.dataUsageLimitMBytes)
+                .build();
+
+        logger.info("Attempting to authorize UniFi client UUID: {} with payload: {}", clientIdUuid, unifiPayload);
+        ResponseDTO unifiResponse = unifiApiClient.executeClientAction(
+                "default", // siteId
+                clientIdUuid,
+                unifiPayload
+        );
+
+        if (unifiResponse != null && unifiResponse.getMeta() != null && "ok".equalsIgnoreCase(unifiResponse.getMeta().getRc())) {
+            logger.info("UniFi controller successfully authorized client UUID: {}. Creating local session.", clientIdUuid);
+            Session session = generateSession(
+                    request.getMacAddress(),
+                    request.getIpAddress(),
+                    request.getAccessPointMacAddress(), // This comes from AuthorizeDeviceRequestDTO
+                    request.getBrowser(),
+                    request.getOperatingSystem());
             return generateSessionInfo(sessionService.addSession(session));
         } else {
-            throw new RuntimeException("Unifi Controller has not authorized guest for request " + request.toString());
+            String errMsg = (unifiResponse != null && unifiResponse.getMeta() != null) ? unifiResponse.getMeta().getMsg() : "Unknown error";
+            logger.error("UniFi Controller failed to authorize guest UUID: {}. Reason: {}. UniFi Response Data: {}",
+                    clientIdUuid, errMsg, unifiResponse != null ? unifiResponse.getData() : "N/A");
+            throw new RuntimeException("UniFi Controller could not authorize guest. Details: " + errMsg);
         }
     }
 
-    /**
-     * Gets the session info.
-     *
-     * @param macAddress the mac address
-     * @return the session info
-     * @throws NoContentException the not found exception
-     */
     @Override
     public SessionInfoDTO getSessionInfo(String macAddress) throws NoContentException {
         try {
@@ -91,18 +120,12 @@ public class CaptivePortalServiceImpl implements CaptivePortalService{
             return generateSessionInfo(session);
         } catch (NoContentException e) {
             String error = String.format(LoggerConstants.NOT_FOUND_EXCEPTION, "CaptivePortalServiceImpl",
-                    "getSessionInfo", "session", "");
+                    "getSessionInfo", "session for MAC: " + macAddress, ""); // Adjusted message
             logger.error(error);
             throw e;
         }
     }
 
-    /**
-     * Generate session info.
-     *
-     * @param session the session
-     * @return the session info DTO
-     */
     private SessionInfoDTO generateSessionInfo(Session session) {
         Timestamp loginDate = session.getLastLoginOn();
         Timestamp expireDate = session.getExpireLoginOn();
@@ -110,48 +133,46 @@ public class CaptivePortalServiceImpl implements CaptivePortalService{
 
         long diff = expireDate.getTime() - now.getTime();
         if (diff <= 0) {
-            return new SessionInfoDTO(session.getDeviceMac(), Long.valueOf(0), Long.valueOf(0), expireDate, loginDate);
+            return new SessionInfoDTO(session.getDeviceMac(), 0L, 0L, expireDate, loginDate);
         }
         long diffSeconds = (diff / 1000) % 60;
         long diffMinutes = (diff / (60 * 1000));
-        return new SessionInfoDTO(session.getDeviceMac(), Long.valueOf(diffMinutes), Long.valueOf(diffSeconds), expireDate, loginDate);
+        return new SessionInfoDTO(session.getDeviceMac(), diffMinutes, diffSeconds, expireDate, loginDate);
     }
 
-    /**
-     * Generate session.
-     *
-     * @param macAddress    the mac address
-     * @param minutes       the minutes
-     * @param downloadSpeed the download speed
-     * @param uploadSpeed   the upload speed
-     * @param quota         the quota
-     * @param apMacAddress  the ap mac address
-     * @return the session
-     */
     private Session generateSession(String macAddress, String ipAddress, String accessPointMac, String browser,
                                     String operatingSystem) {
         Session session = new Session();
         session.setBrowser(browser);
         session.setOperatingSystem(operatingSystem);
         session.setDeviceMac(macAddress);
-        session.setAccesspointMac(accessPointMac);
+        session.setAccesspointMac(accessPointMac != null ? accessPointMac : "N/A"); // Handle null AP MAC
         session.setDeviceIp(ipAddress);
-        Integer durationMinutes = this.sessionDurationMinutes != null ? this.sessionDurationMinutes.intValue() : 0;
 
-        Timestamp expireDate = new Timestamp(System.currentTimeMillis()); // Timestamp.now();
+        // Use sessionDurationMinutes (which should be Integer)
+        int durationMinutesActual = (this.sessionDurationMinutes != null) ? this.sessionDurationMinutes : 0;
 
-        expireDate.setTime(expireDate.getTime() + TimeUnit.MINUTES
-                .toMillis(this.sessionHiddenMinutes != null ? durationMinutes - sessionHiddenMinutes.intValue()
-                        : durationMinutes));
+        Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
+        Timestamp expireDate = new Timestamp(lastLogin.getTime());
 
-        Integer blockMinutes = this.sessionBlockMinutes != null ? this.sessionBlockMinutes.intValue() : 0;
+        // Calculate actual visible expiry for user (total duration - hidden minutes)
+        long visibleDurationMillis = TimeUnit.MINUTES.toMillis(durationMinutesActual);
+        if (this.sessionHiddenMinutes != null && this.sessionHiddenMinutes > 0) {
+            visibleDurationMillis -= TimeUnit.MINUTES.toMillis(this.sessionHiddenMinutes);
+        }
+        expireDate.setTime(lastLogin.getTime() + Math.max(0, visibleDurationMillis)); // Ensure not negative
 
-        Timestamp unblockDate = new Timestamp(System.currentTimeMillis());
+        // Calculate when the session record should be removed (total duration + block minutes)
+        Timestamp removeDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(durationMinutesActual));
+        if (this.sessionBlockMinutes != null && this.sessionBlockMinutes > 0) {
+            removeDate.setTime(removeDate.getTime() + TimeUnit.MINUTES.toMillis(this.sessionBlockMinutes));
+        } else { // If no block minutes, set removeDate same as expireDate or slightly after.
+            removeDate.setTime(expireDate.getTime() + TimeUnit.MINUTES.toMillis(1)); // Remove 1 min after visible expiry
+        }
 
-        unblockDate.setTime(expireDate.getTime() + TimeUnit.MINUTES.toMillis(blockMinutes));
+        session.setLastLoginOn(lastLogin);
         session.setExpireLoginOn(expireDate);
-        session.setLastLoginOn(new Timestamp(System.currentTimeMillis())); // now()
-        session.setRemoveSessionOn(unblockDate);
+        session.setRemoveSessionOn(removeDate);
         return session;
     }
 }

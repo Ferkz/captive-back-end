@@ -8,10 +8,7 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
-import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.*;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
@@ -30,14 +27,14 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 
 public class Session {
-    /** The id. */
+    // ID
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Min(1)
     private Long id;
 
-    /** The device mac. */
-    @Column(name="device_mac")
+    // mac do dispositivo
+    @Column(name="device_mac", unique = true)
     @NotNull @NotBlank @NotEmpty
     private String deviceMac;
 
@@ -76,5 +73,21 @@ public class Session {
     /** The operating system. */
     @Column(name="operating_system")
     private String operatingSystem;
+    @Column(name="full_name")
+    @NotNull @NotBlank
+    @Size(min = 3, max = 100)
+    private String fullName;
+
+    @Column(name="email")
+    @NotNull @NotBlank @Email
+    @Size(max = 100)
+    private String email;
+
+    @Column(name="phone_number")
+    @Size(max = 20) // Ajuste o tamanho conforme necessário
+    private String phoneNumber;
+
+    @Column(name="accepted_tou") // Termos de Uso
+    private Boolean acceptedTou = Boolean.FALSE;
 
 }

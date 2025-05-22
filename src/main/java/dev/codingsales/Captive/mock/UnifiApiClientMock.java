@@ -1,77 +1,72 @@
 package dev.codingsales.Captive.mock;
 
+import dev.codingsales.Captive.include.unifi.UnifiApiClient;
+import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
+import dev.codingsales.Captive.include.unifi.dto.MetaDTO;
+// Usando SEU RequestAuthorizeGuestDTO que você adaptou
+import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
+import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
-import dev.codingsales.Captive.include.unifi.UnifiApiClient;
 
-@ConditionalOnProperty(name = "unifiApi.controller.mock", havingValue="true", matchIfMissing = true)
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+
+// Certifique-se que esta condição corresponde à sua propriedade em application.properties para ativar o mock
+@ConditionalOnProperty(name = "unifiApi.controller.mock", havingValue = "true")
 @Service
-public class UnifiApiClientMock implements UnifiApiClient{
-    /**
-     * Login.
-     *
-     * @return true, if successful
-     */
+public class UnifiApiClientMock implements UnifiApiClient {
+    private static final Logger logger = LoggerFactory.getLogger(UnifiApiClientMock.class);
+
     @Override
     public boolean login() {
+        logger.info("MOCK UnifiApiClient: login() called (API key readiness check)");
         return true;
     }
 
-    /**
-     * Logout.
-     *
-     * @return true, if successful
-     */
     @Override
-    public boolean logout() {
-        return true;
+    public ClientDTO getClientByMac(String siteId, String macAddress) {
+        logger.info("MOCK UnifiApiClient: getClientByMac() called for siteId: {}, macAddress: {}", siteId, macAddress);
+        if (macAddress == null || macAddress.trim().isEmpty()) {
+            return null;
+        }
+        ClientDTO mockClient = new ClientDTO();
+        mockClient.setId(UUID.randomUUID().toString());
+        mockClient.setMacAddress(macAddress.toLowerCase());
+        mockClient.setName("Mock Device " + macAddress.substring(Math.max(0, macAddress.length() - 5)));
+        mockClient.setIpAddress("192.168.1.123");
+        mockClient.setType("WIRELESS");
+        mockClient.setConnectedAt(java.time.Instant.now().toString());
+        return mockClient;
     }
 
-    /**
-     * Authorize guest.
-     *
-     * @param macAddress the mac address
-     * @param minutes the minutes
-     * @param downloadSpeed the download speed
-     * @param uploadSpeed the upload speed
-     * @param quota the quota
-     * @return true, if successful
-     */
     @Override
-    public boolean authorizeGuest(String macAddress, Long minutes, Long downloadSpeed, Long uploadSpeed, Long quota, String apMac) {
-        return true;
-    }
+    public ResponseDTO executeClientAction(String siteId, String clientIdUuid, RequestAuthorizeGuestDTO payload) {
+        // Usando getCmd() do seu DTO existente
+        String actionString = payload.getAction();
 
-    /**
-     * Un authorize guest.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    @Override
-    public boolean unAuthorizeGuest(String macAddress) {
-        return true;
-    }
+        logger.info("MOCK UnifiApiClient: executeClientAction() called for siteId: {}, clientIdUuid: {}, action: {}",
+                siteId, clientIdUuid, actionString);
 
-    /**
-     * Block.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    @Override
-    public boolean block(String macAddress) {
-        return true;
-    }
+        ResponseDTO mockResponse = new ResponseDTO();
+        MetaDTO meta = new MetaDTO();
+        meta.setRc("ok");
+        meta.setMsg("Mock action '" + actionString + "' executed successfully for client " + clientIdUuid);
+        mockResponse.setMeta(meta);
 
-    /**
-     * Unblock.
-     *
-     * @param macAddress the mac address
-     * @return true, if successful
-     */
-    @Override
-    public boolean unblock(String macAddress) {
-        return true;
+        Map<String, Object> responseData = new HashMap<>();
+        responseData.put("action", actionString); // Usando a string da ação original
+        responseData.put("status", "success_mock");
+
+        // Usando getMinutes() do seu DTO existente
+        if ("authorize-guest".equalsIgnoreCase(actionString)) {
+            responseData.put("timeLimitMinutes", payload.getTimeLimitMinutes());
+        }
+        mockResponse.setData(Collections.singletonList(responseData)); // Corrigido para setData
+        return mockResponse;
     }
 }

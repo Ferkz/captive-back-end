@@ -79,7 +79,7 @@ public class SessionController {
      * @return the response entity
      * @throws NoContentException the not found exception
      */
-    @ConditionalOnProperty(name = "jespresso.sessions.full_update_enable", matchIfMissing = false)
+    @ConditionalOnProperty(name = "captive.sessions.full_update_enable", matchIfMissing = false)
     @PutMapping("/sessions")
     public ResponseEntity<Object> updateSession(@PathVariable("id") Long id, @RequestBody @Valid Session session) throws NoContentException {
         SessionDTO updatedDTO = SessionMapper.INSTANCE.SessionToSessionDTO(sessionService.updateSession(id, session));

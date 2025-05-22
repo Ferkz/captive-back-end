@@ -2,7 +2,7 @@
   {
     "name": "unifiApi.controller.url",
     "type": "java.lang.String",
-    "description": "Ubiquiti Unifi Controller endpoint i.e. 'http://localhost:8443/'"
+    "description": "Ubiquiti Unifi Controller endpoint i.e. 'http://10.0.2.0:8443/'"
   },
   {
     "name": "unifiApi.controller.username",
@@ -12,12 +12,12 @@
   {
     "name": "captive.landing.path",
     "type": "java.lang.String",
-    "description": "jEspresso landing path for ubiquiti controller alias. i.e. '/guest/s/default'"
+    "description": "Captive landing path for ubiquiti controller alias. i.e. '/guest/s/default'"
   },
   {
     "name": "captive.admin.path",
     "type": "java.lang.String",
-    "description": "jEspresso path for admin backend alias i.e. '/admin'"
+    "description": "Captive path for admin backend alias i.e. '/admin'"
   },
   {
     "name": "unifiApi.controller.password",

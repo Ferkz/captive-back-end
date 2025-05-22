@@ -2,7 +2,7 @@ package dev.codingsales.Captive.security;
 
 import java.io.Serializable;
 
-public class JwtRequest {
+public class JwtRequest implements Serializable{
     /** The Constant serialVersionUID. */
     private static final long serialVersionUID = 5926468583005150707L;
 
