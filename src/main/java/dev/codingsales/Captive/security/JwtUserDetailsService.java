@@ -1,10 +1,8 @@
 package dev.codingsales.Captive.security;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
+import java.util.*;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -13,6 +11,8 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import dev.codingsales.Captive.entity.AdminUser;
 import dev.codingsales.Captive.entity.Privilege;
@@ -24,6 +24,7 @@ import dev.codingsales.Captive.service.AdministratorService;
 @Component
 public class JwtUserDetailsService implements UserDetailsService {
     /** The administrator service. */
+    private static final Logger logger = LoggerFactory.getLogger(JwtUserDetailsService.class);
     @Autowired
     private AdministratorService administratorService;
 
@@ -45,10 +46,16 @@ public class JwtUserDetailsService implements UserDetailsService {
             return new User(administrator.getEmail(), administrator.getPassword(), true, true, true, true,
                     this.getAuthorities(administrator.getRoles()));
         } catch (NoContentException e) {
-            return new org.springframework.security.core.userdetails.User(
-                    " ", " ", true, true, true, true,
-                    getAuthorities(Arrays.asList(
-                            roleRepository.findByName("ROLE_USER").get())));
+            logger.warn("Usuario '{}' não encontrado, tentando carregar com ROLE_USER");
+            Optional<Role> defaultRoleOpt = roleRepository.findByName("ROLE_USER");
+            if (defaultRoleOpt.isPresent()){
+                return new org.springframework.security.core.userdetails.User(
+                        " ", " ", true, true, true, true, // Usuário dummy
+                        getAuthorities(Arrays.asList(defaultRoleOpt.get())));
+            } else {
+                logger.error("Usuario '{}' nao encontrado e a role padrao 'ROLE_USER' não existe no banco ");
+                throw new UsernameNotFoundException("Usuario nao encontrado e role 'ROLE_USER' nao existe no banco");
+            }
         }
     }
 
@@ -82,7 +89,6 @@ public class JwtUserDetailsService implements UserDetailsService {
         }
         return privileges;
     }
-
     /**
      * Gets the granted authorities.
      *

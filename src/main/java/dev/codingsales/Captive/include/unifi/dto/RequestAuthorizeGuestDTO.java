@@ -11,7 +11,7 @@ import lombok.AllArgsConstructor;
 @Builder
 @AllArgsConstructor
 @JsonInclude(JsonInclude.Include.NON_NULL)
-public class RequestAuthorizeGuestDTO {
+public class RequestAuthorizeGuestDTO extends RequestGuestDTO {
     @JsonProperty("action")
     private String action; // e.g., "AUTHORIZE_GUEST_ACCESS", "UNAUTHORIZE_GUEST_ACCESS"
 

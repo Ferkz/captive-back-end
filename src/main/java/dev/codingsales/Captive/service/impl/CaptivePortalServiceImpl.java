@@ -4,7 +4,6 @@ import java.sql.Timestamp;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-// Corrected: Use org.slf4j.Logger
 import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

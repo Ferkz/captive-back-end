@@ -62,9 +62,9 @@ public class GuestPortalController {
                     errors));
         }
         // Obter o mac e o Ip do cliente. o unifi enviar o mac
-        String clientMac = httpRequest.getParameter("mac");
+        String clientMac = registrationRequest.getDeviceMac();
         String clientIp = httpRequest.getRemoteAddr();
-        String apMac = httpRequest.getParameter("ap");
+        String apMac = registrationRequest.getAccessPointMac();
         if (clientMac == null || clientMac.trim().isEmpty()) {
             logger.error("Mac address do cliente não foi fornecido na requisição.");
             return ResponseEntity.badRequest().body(new ErrorResponseDTO(
