@@ -48,7 +48,7 @@ public class SessionServiceImpl implements SessionService{
      *
      * @param accessLogsEnabled the access logs enabled
      */
-    public SessionServiceImpl(@Value("${jespresso.logs.access-sessions.enable}") boolean accessLogsEnabled) {
+    public SessionServiceImpl(@Value("${logs.access-sessions.enable}") boolean accessLogsEnabled) {
         this.accessLogsEnabled = accessLogsEnabled;
     }
 
