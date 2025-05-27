@@ -87,7 +87,16 @@ public class SessionServiceImpl implements SessionService{
             }
         }
     }
+    @Override
+    public Optional<Session> findValidSessionByEmailAndMac(String email, String deviceMac) {
+        // Encontra a sessão onde o email e MAC correspondem e a sessão ainda não expirou
+        return sessionRepository.findByEmailAndDeviceMacAndExpireLoginOnGreaterThan(email, deviceMac, new Date());
+    }
 
+    @Override
+    public Optional<Session> findByEmail(String email) {
+        return sessionRepository.findByEmail(email);
+    }
     /**
      * Update session.
      *

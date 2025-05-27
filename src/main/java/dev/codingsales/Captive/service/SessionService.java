@@ -2,6 +2,7 @@ package dev.codingsales.Captive.service;
 
 import java.sql.Timestamp;
 import java.util.List;
+import java.util.Optional;
 
 import dev.codingsales.Captive.dto.item.BrowserCount;
 import dev.codingsales.Captive.dto.item.ItemList;
@@ -161,4 +162,18 @@ public interface SessionService {
      * Clean session table removing old unblocked session. (Devices can reconnect again)
      */
     public void cleanSessionTable();
+    /**
+     * Tenta encontrar uma sessão válida por email e MAC.
+     * @param email o email do convidado
+     * @param deviceMac o MAC do dispositivo
+     * @return um Optional contendo a sessão se encontrada e válida, ou Optional.empty()
+     */
+    Optional<Session> findValidSessionByEmailAndMac(String email, String deviceMac);
+
+    /**
+     * Tenta encontrar uma sessão por email, independente do MAC.
+     * @param email o email do convidado
+     * @return um Optional contendo a sessão se encontrada, ou Optional.empty()
+     */
+    Optional<Session> findByEmail(String email);
 }

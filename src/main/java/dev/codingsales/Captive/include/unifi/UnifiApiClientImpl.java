@@ -1,6 +1,6 @@
 package dev.codingsales.Captive.include.unifi;
 
-import dev.codingsales.Captive.include.unifi.dto.ClientDTO; // Assuming you have this from previous suggestions
+import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
 import dev.codingsales.Captive.include.unifi.dto.MetaDTO;
 import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
 import org.slf4j.Logger;
@@ -15,8 +15,8 @@ import org.springframework.web.client.RestTemplate;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
+import java.net.URLEncoder; // Será mantido no import, mas não mais usado para o filtro problemático
+import java.nio.charset.StandardCharsets; // Será mantido no import
 import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.List;
@@ -59,22 +59,13 @@ public class UnifiApiClientImpl implements UnifiApiClient {
 
     @Override
     public ClientDTO getClientByMac(String siteId, String macAddress) {
-        String encodedFilter;
-        try {
-            // The filter format from UniFi API docs: <property>.<function>(<arguments>)
-            String filterValue = String.format("macAddress.eq('%s')", macAddress.toLowerCase());
-            encodedFilter = URLEncoder.encode(filterValue, StandardCharsets.UTF_8.toString());
-        } catch (UnsupportedEncodingException e) {
-            logger.error("Error encoding filter for MAC address {}: {}", macAddress, e.getMessage(), e);
-            return null;
-        }
-
-        // Using the /integration/v1 path
-        String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients?filter=" + encodedFilter;
+        // Removendo completamente o parâmetro 'filter' da URL
+        // e buscando todos os clientes para filtrar manualmente no código.
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients"; // URL para buscar TODOS os clientes
         HttpEntity<Void> entity = new HttpEntity<>(createApiHeaders());
 
         try {
-            logger.debug("Fetching UniFi client by MAC. URL: {}", url);
+            logger.debug("Buscando todos os clientes UniFi para o site {}. URL: {}", siteId, url);
             ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
             if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
@@ -84,30 +75,33 @@ public class UnifiApiClientImpl implements UnifiApiClient {
                 if (dataObject instanceof List) {
                     @SuppressWarnings("unchecked")
                     List<Map<String, Object>> clientDataList = (List<Map<String, Object>>) dataObject;
-                    if (!clientDataList.isEmpty()) {
-                        ClientDTO client = objectMapper.convertValue(clientDataList.get(0), ClientDTO.class);
-                        logger.info("Client found: ID (UUID)={}, MAC={}", client.getId(), client.getMacAddress());
-                        return client;
-                    } else {
-                        logger.warn("No client found with MAC {} in site {}. Response body: {}", macAddress, siteId, responseEntity.getBody());
+
+                    // Filtrar manualmente a lista de clientes por endereço MAC no lado da aplicação
+                    for (Map<String, Object> clientMap : clientDataList) {
+                        if (clientMap.containsKey("macAddress") && clientMap.get("macAddress").toString().equalsIgnoreCase(macAddress)) {
+                            ClientDTO client = objectMapper.convertValue(clientMap, ClientDTO.class);
+                            logger.info("Cliente encontrado por filtro manual: ID (UUID)={}, MAC={}", client.getId(), client.getMacAddress());
+                            return client;
+                        }
                     }
+                    logger.warn("Nenhum cliente encontrado com MAC {} no site {} após filtragem manual dos clientes recuperados. Total de clientes na resposta: {}", macAddress, siteId, clientDataList.size());
                 } else {
-                    logger.warn("UniFi API response for getClientByMac did not contain a 'data' list or it was not a list. MAC: {}, Site: {}. Response body: {}", macAddress, siteId, responseEntity.getBody());
+                    logger.warn("A resposta da API UniFi para getClientByMac não continha uma lista 'data' ou não era uma lista. MAC: {}, Site: {}. Corpo da resposta: {}", macAddress, siteId, responseEntity.getBody());
                 }
             } else {
-                logger.error("Failed to fetch client by MAC {}. Status: {}, Response: {}",
-                        macAddress, responseEntity.getStatusCode(), responseEntity.getBody());
+                logger.error("Falha ao buscar todos os clientes para o site {}. Status: {}, Resposta: {}",
+                        siteId, responseEntity.getStatusCode(), responseEntity.getBody());
             }
         } catch (HttpClientErrorException e) {
-            logger.error("HTTP error fetching UniFi client by MAC {}: {} - Response: {}", macAddress, e.getStatusCode(), e.getResponseBodyAsString(), e);
+            logger.error("Erro HTTP ao buscar todos os clientes UniFi para o site {}: {} - Resposta: {}", siteId, e.getStatusCode(), e.getResponseBodyAsString(), e);
         } catch (Exception e) {
-            logger.error("Unexpected error fetching UniFi client by MAC {}: {}", macAddress, e.getMessage(), e);
+            logger.error("Erro inesperado ao buscar todos os clientes UniFi para o site {}: {}", siteId, e.getMessage(), e);
         }
-        return null;
+        return null; // Cliente não encontrado ou ocorreu um erro
     }
     @Override
     public ResponseDTO executeClientAction(String siteId, String clientIdUuid,
-                                                                dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO payload) {
+                                           dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO payload) {
         String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients/" + clientIdUuid + "/actions";
         HttpEntity<dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO> entity =
                 new HttpEntity<>(payload, createApiHeaders());
