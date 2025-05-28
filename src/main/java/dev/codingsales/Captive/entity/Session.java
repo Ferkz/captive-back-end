@@ -90,4 +90,5 @@ public class Session {
     @Column(name="accepted_tou") // Termos de Uso
     private Boolean acceptedTou = Boolean.FALSE;
 
+
 }
