@@ -78,9 +78,7 @@ public interface SessionService {
      * @return the session
      * @throws NoContentException the not found exception
      */
-    public Session findByDeviceMac(String deviceMac) throws NoContentException;
-
-
+    public Optional<Session> findByDeviceMac(String deviceMac) throws NoContentException;
     /**
      * Checks if is expired.
      *

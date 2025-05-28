@@ -83,7 +83,6 @@ public class UnifiAuthService {
         }
         String clientIdUuid = client.getId();
 
-        // Construindo o RequestAuthorizeGuestDTO com os campos corretos (action, timeLimitMinutes, etc.)
         RequestAuthorizeGuestDTO payloadParaApiV1 = RequestAuthorizeGuestDTO.builder()
                 .action("AUTHORIZE_GUEST_ACCESS")
                 .timeLimitMinutes(minutesToUse)

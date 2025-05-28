@@ -59,45 +59,71 @@ public class UnifiApiClientImpl implements UnifiApiClient {
 
     @Override
     public ClientDTO getClientByMac(String siteId, String macAddress) {
-        // Removendo completamente o parâmetro 'filter' da URL
-        // e buscando todos os clientes para filtrar manualmente no código.
-        String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients"; // URL para buscar TODOS os clientes
-        HttpEntity<Void> entity = new HttpEntity<>(createApiHeaders());
+        int offset = 0;
+        int limit = 100; // Aumentado o limite para buscar mais clientes por requisição
+        boolean moreClients = true; // Flag para controlar se há mais páginas a serem buscadas
 
-        try {
-            logger.debug("Buscando todos os clientes UniFi para o site {}. URL: {}", siteId, url);
-            ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
+        while (moreClients) {
+            // Constrói a URL com offset e limit para buscar páginas específicas de clientes
+            String url = baseUrl + "/integration/v1/sites/" + siteId + "/clients?offset=" + offset + "&limit=" + limit;
+            HttpEntity<Void> entity = new HttpEntity<>(createApiHeaders());
 
-            if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
-                Map<String, Object> responseMap = objectMapper.readValue(responseEntity.getBody(), new TypeReference<Map<String, Object>>() {});
-                Object dataObject = responseMap.get("data");
+            try {
+                logger.debug("Buscando clientes UniFi para o site {} (offset: {}, limit: {}). URL: {}", siteId, offset, limit, url);
+                ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
-                if (dataObject instanceof List) {
-                    @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> clientDataList = (List<Map<String, Object>>) dataObject;
+                if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
+                    Map<String, Object> responseMap = objectMapper.readValue(responseEntity.getBody(), new TypeReference<Map<String, Object>>() {});
+                    Object dataObject = responseMap.get("data");
 
-                    // Filtrar manualmente a lista de clientes por endereço MAC no lado da aplicação
-                    for (Map<String, Object> clientMap : clientDataList) {
-                        if (clientMap.containsKey("macAddress") && clientMap.get("macAddress").toString().equalsIgnoreCase(macAddress)) {
-                            ClientDTO client = objectMapper.convertValue(clientMap, ClientDTO.class);
-                            logger.info("Cliente encontrado por filtro manual: ID (UUID)={}, MAC={}", client.getId(), client.getMacAddress());
-                            return client;
+                    if (dataObject instanceof List) {
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> clientDataList = (List<Map<String, Object>>) dataObject;
+
+                        // Itera a lista de clientes desta página e filtra manualmente pelo MAC
+                        for (Map<String, Object> clientMap : clientDataList) {
+                            if (clientMap.containsKey("macAddress") && clientMap.get("macAddress").toString().equalsIgnoreCase(macAddress)) {
+                                ClientDTO client = objectMapper.convertValue(clientMap, ClientDTO.class);
+                                logger.info("Cliente encontrado por filtro manual: ID (UUID)={}, MAC={}", client.getId(), client.getMacAddress());
+                                return client; // Cliente encontrado, retorna o DTO
+                            }
                         }
+
+                        // Lógica para verificar se há mais páginas a serem buscadas
+                        int count = (Integer) responseMap.getOrDefault("count", 0); // Quantidade de clientes na resposta atual
+                        int totalCount = (Integer) responseMap.getOrDefault("totalCount", 0); // Total de clientes disponíveis no UniFi
+
+                        if (count < limit || (offset + count) >= totalCount) {
+                            // Se a quantidade de clientes na resposta for menor que o limite,
+                            // ou se já buscamos todos os clientes com base no totalCount,
+                            // não há mais páginas a serem buscadas.
+                            moreClients = false;
+                        } else {
+                            offset += count; // Avança o offset para a próxima página
+                            logger.debug("Continuando para a próxima página de clientes. Próximo offset: {}", offset);
+                        }
+
+                    } else {
+                        logger.warn("A resposta da API UniFi para getClientByMac não continha uma lista 'data' ou não era uma lista. MAC: {}, Site: {}. Corpo da resposta: {}", macAddress, siteId, responseEntity.getBody());
+                        moreClients = false; // Interrompe a busca se o formato da resposta for inesperado
                     }
-                    logger.warn("Nenhum cliente encontrado com MAC {} no site {} após filtragem manual dos clientes recuperados. Total de clientes na resposta: {}", macAddress, siteId, clientDataList.size());
                 } else {
-                    logger.warn("A resposta da API UniFi para getClientByMac não continha uma lista 'data' ou não era uma lista. MAC: {}, Site: {}. Corpo da resposta: {}", macAddress, siteId, responseEntity.getBody());
+                    logger.error("Falha ao buscar clientes para o site {} (offset: {}, limit: {}). Status: {}, Resposta: {}",
+                            siteId, offset, limit, responseEntity.getStatusCode(), responseEntity.getBody());
+                    moreClients = false; // Interrompe a busca se a chamada da API falhou
                 }
-            } else {
-                logger.error("Falha ao buscar todos os clientes para o site {}. Status: {}, Resposta: {}",
-                        siteId, responseEntity.getStatusCode(), responseEntity.getBody());
+            } catch (HttpClientErrorException e) {
+                logger.error("Erro HTTP ao buscar clientes UniFi para o site {} (offset: {}, limit: {}): {} - Resposta: {}",
+                        siteId, offset, limit, e.getStatusCode(), e.getResponseBodyAsString(), e);
+                moreClients = false; // Interrompe a busca em caso de erro HTTP
+            } catch (Exception e) {
+                logger.error("Erro inesperado ao buscar clientes UniFi para o site {} (offset: {}, limit: {}): {}",
+                        siteId, offset, limit, e.getMessage(), e);
+                moreClients = false; // Interrompe a busca em caso de erro inesperado
             }
-        } catch (HttpClientErrorException e) {
-            logger.error("Erro HTTP ao buscar todos os clientes UniFi para o site {}: {} - Resposta: {}", siteId, e.getStatusCode(), e.getResponseBodyAsString(), e);
-        } catch (Exception e) {
-            logger.error("Erro inesperado ao buscar todos os clientes UniFi para o site {}: {}", siteId, e.getMessage(), e);
         }
-        return null; // Cliente não encontrado ou ocorreu um erro
+        logger.warn("Nenhum cliente encontrado com MAC {} no site {} após verificar todas as páginas.", macAddress, siteId);
+        return null; // Cliente não encontrado após verificar todas as páginas
     }
     @Override
     public ResponseDTO executeClientAction(String siteId, String clientIdUuid,
