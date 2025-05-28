@@ -50,7 +50,11 @@ public class InitialDataLoader implements ApplicationListener<ContextRefreshedEv
     @Override
     @javax.transaction.Transactional
     public void onApplicationEvent(ContextRefreshedEvent event) {
+        // Verifica se as tabelas de administradores estão vazias.
+        // Para adicionar novos usuários, você pode temporariamente setar 'alreadySetup = false;'
+        // OU verificar se o usuário específico que você quer adicionar já existe.
         alreadySetup = !adminUserRepository.findAll().isEmpty();
+
         if (!alreadySetup) {
             Privilege readPrivilege = createPrivilegeIfNotFound("READ_PRIVILEGE");
             Privilege writePrivilege = createPrivilegeIfNotFound("WRITE_PRIVILEGE");
@@ -60,27 +64,39 @@ public class InitialDataLoader implements ApplicationListener<ContextRefreshedEv
             createRoleIfNotFound("ROLE_USER", Arrays.asList(readPrivilege));
 
             Role adminRole = roleRepository.findByName("ROLE_ADMIN").get();
-            AdminUser user = new AdminUser();
-            user.setFullName("Administrator");
-            user.setPassword(passwordEncoder.encode("password"));
-            user.setEmail("admin@localhost");
-            user.setRoles(Arrays.asList(adminRole));
-            user.setEnabled(true);
-            adminUserRepository.save(user);
 
-            alreadySetup = true;
+            if (adminUserRepository.findByEmail("admin@localhost").isEmpty()) {
+                AdminUser defaultAdmin = new AdminUser();
+                defaultAdmin.setFullName("Default Administrator");
+                defaultAdmin.setPassword(passwordEncoder.encode("password")); // Senha padrão 'password'
+                defaultAdmin.setEmail("admin@localhost");
+                defaultAdmin.setRoles(Arrays.asList(adminRole));
+                defaultAdmin.setEnabled(true);
+                adminUserRepository.save(defaultAdmin);
+            }
+
+            String preExistingUserEmail = "meu.admin.antigo@dominio.com"; // <-- SEU E-MAIL
+            if (adminUserRepository.findByEmail(preExistingUserEmail).isEmpty()) {
+                AdminUser preExistingAdmin = new AdminUser();
+                preExistingAdmin.setFullName("Administrador"); // <-- SEU NOME
+                preExistingAdmin.setPassword(passwordEncoder.encode("minhaSenhaAntigaSecreta!")); //
+                preExistingAdmin.setEmail(preExistingUserEmail);
+                preExistingAdmin.setRoles(Arrays.asList(adminRole)); // Atribui a ROLE_ADMIN
+                preExistingAdmin.setEnabled(true); // Ativa o usuário
+                adminUserRepository.save(preExistingAdmin);
+            }
+
+            alreadySetup = true; // Marca como setup completo
         }
     }
 
     /**
-     * Creates the privilege if not found.
      *
      * @param name the name
      * @return the privilege
      */
     @javax.transaction.Transactional
     private Privilege createPrivilegeIfNotFound(String name) {
-
         Optional<Privilege> privilegeFromDb = privilegeRepository.findByName(name);
         if (!privilegeFromDb.isPresent()) {
             Privilege privilege = new Privilege(null, name, null);
@@ -98,7 +114,6 @@ public class InitialDataLoader implements ApplicationListener<ContextRefreshedEv
      */
     @Transactional
     private Role createRoleIfNotFound(String name, Collection<Privilege> privileges) {
-
         Optional<Role> roleFromDb = roleRepository.findByName(name);
         if (!roleFromDb.isPresent()) {
             Role role = new Role();
