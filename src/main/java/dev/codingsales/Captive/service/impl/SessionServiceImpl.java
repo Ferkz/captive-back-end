@@ -202,8 +202,16 @@ public class SessionServiceImpl implements SessionService{
      * @throws NoContentException the not found exception
      */
     @Override
-    public Optional<Session> findByDeviceMac(String deviceMac) throws NoContentException {
-        return sessionRepository.findByDeviceMac(deviceMac);
+    public Session findByDeviceMac(String deviceMac) throws NoContentException {
+        Optional<Session> sessionFromDb = sessionRepository.findByDeviceMac(deviceMac);
+        if (sessionFromDb.isPresent()) {
+            return sessionFromDb.get();
+        } else {
+            String error = String.format(LoggerConstants.NOT_FOUND_EXCEPTION, "SessionServiceImpl", "findByDeviceMac",
+                    "session", 0);
+            logger.error(error);
+            throw new NoContentException(error);
+        }
     }
 
     /**
