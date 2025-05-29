@@ -98,12 +98,7 @@ public class GuestPortalController {
                     sessionService.deleteSession(existingSession.getId());
                 }
             }
-
-            // **Adição para verificar se o email já está cadastrado**
-            // Se você quer que o email seja único para todos os cadastros
             if (sessionService.findByEmail(registrationRequest.getEmail()).isPresent()) {
-                // Se um cadastro com este email já existe (mesmo que a sessão tenha expirado),
-                // você pode querer direcionar o usuário para a tela de "login"
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponseDTO(
                         HttpStatus.CONFLICT.value(),
                         "Email Already Registered",

@@ -20,7 +20,10 @@ public class SessionDTO {
 
     @NotNull @NotBlank @NotNull
     private String deviceMac;
-
+    @NotNull @NotBlank
+    private String fullName;
+    @NotNull @NotBlank
+    private String email;
     @NotNull @NotBlank @NotNull
     private String deviceIp;
 
