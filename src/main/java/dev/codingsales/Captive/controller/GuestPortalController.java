@@ -91,7 +91,7 @@ public class GuestPortalController {
 
                     return ResponseEntity.ok(new SuccessResponseDTO(
                             HttpStatus.OK.value(),
-                            "Already Active",
+                            "already active",
                             "Seu dispositivo já está autorizado e com uma sessão ativa."));
                 } else {
                     // Sessão existe mas expirou, pode deletar ou atualizar
