@@ -21,5 +21,5 @@ public class AdministratorDTO {
 
     private Timestamp lastModification;
 
-    private Boolean enabled;
+    private boolean enabled;
 }

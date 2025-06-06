@@ -21,6 +21,10 @@ public class ClientDTO {
     private String connectedAt; // Consider mapping to Date/Instant with custom deserializer
     @JsonProperty("type") // e.g., WIRED, WIRELESS
     private String type;
+    @JsonProperty("hostname")
+    private String hostname;
+    @JsonProperty("osName")
+    private String osName;
     // Add any other fields you might need from the client object
     // For example, from the API docs:
     // "access": { "type": "string" },

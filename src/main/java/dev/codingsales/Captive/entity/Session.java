@@ -37,7 +37,12 @@ public class Session {
     @Column(name="device_mac", unique = true)
     @NotNull @NotBlank @NotEmpty
     private String deviceMac;
-
+    @Column(name="device_name")
+    @NotNull @NotBlank @NotEmpty
+    private String deviceName;
+    @Column(name="device_hostname")
+    @NotNull @NotBlank @NotEmpty
+    private String deviceHostName;
     /** The device ip. */
     @Column(name="device_ip")
     @NotNull @NotBlank @NotEmpty
@@ -84,7 +89,7 @@ public class Session {
     private String email;
 
     @Column(name="phone_number")
-    @Size(max = 20) // Ajuste o tamanho conforme necessário
+    @Size(max = 20)
     private String phoneNumber;
 
     @Column(name="accepted_tou") // Termos de Uso

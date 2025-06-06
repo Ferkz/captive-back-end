@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/auth") // This path might conflict if you have another controller for /api/authenticate
+@RequestMapping("/auth")
 public class UnifiAuthController {
     private final UnifiAuthService authService; // This is now the X-API-KEY focused service
 
@@ -22,27 +22,6 @@ public class UnifiAuthController {
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@RequestBody UnifiLoginRequest request) {
-        // The injected 'authService' (if it's the one we adapted for X-API-KEY)
-        // no longer has 'loginToUnifiController(username, password)'.
-        // This endpoint is for the old cookie-based UniFi controller login.
-        // If you need this functionality, you need a different service that implements it.
-
-        // To make it compile, I am commenting this out.
-        // You need to decide if this controller and its purpose are still valid.
-        /*
-        try {
-            String response = authService.loginToUnifiController( // This method does not exist on the new authService
-                    request.getUsername(),
-                    request.getPassword()
-            );
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Erro no login: " + e.getMessage());
-        }
-        */
         return ResponseEntity
                 .status(HttpStatus.NOT_IMPLEMENTED)
                 .body("This UniFi controller login endpoint is not available with the current API Key authentication method.");

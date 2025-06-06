@@ -22,3 +22,4 @@ public interface SystemInfoService {
      */
     public SystemInfoDTO getSystemInfo();
 }
+

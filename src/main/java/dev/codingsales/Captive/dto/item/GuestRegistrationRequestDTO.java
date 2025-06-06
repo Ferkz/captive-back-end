@@ -21,7 +21,7 @@ public class GuestRegistrationRequestDTO {
     @NotBlank(message = "Número de telefone e obrigatorio")
     @Size(min = 10, max = 20, message = "Numero de telefone invalido")
     private String phoneNumber;
-
+    private String deviceName;
     private String deviceMac;
     private String deviceIp;
     private String accessPointMac;

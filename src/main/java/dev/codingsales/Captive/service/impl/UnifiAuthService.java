@@ -2,9 +2,10 @@ package dev.codingsales.Captive.service.impl;
 
 import dev.codingsales.Captive.include.unifi.UnifiApiClient;
 import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
-// Este é o DTO que você me enviou, com os campos 'action', 'timeLimitMinutes', etc.
 import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
 import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+import dev.codingsales.Captive.include.unifi.dto.UnifiAuthServiceResponseDTO; // Importar o DTO correto
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -39,7 +40,6 @@ public class UnifiAuthService {
 
         logger.info("UnifiAuthService inicializado.");
         logger.info("Valor de defaultSiteIdInjected (de '${unifi.default.site.id}'): '{}'", this.defaultSiteIdInjected);
-        // ... (outros logs de inicialização) ...
     }
 
     private boolean isInvalidSiteId(String siteId) {
@@ -49,10 +49,21 @@ public class UnifiAuthService {
                 "${unifi.default.site.id}".equals(siteId);
     }
 
-    public boolean authorizeDevice(String clientMac, String siteIdFromParam, Integer minutesFromParam, Long dataLimitMbFromParam, Integer downloadSpeedKbpsFromParam, Integer uploadSpeedKbpsFromParam) {
+    public UnifiAuthServiceResponseDTO authorizeDevice(
+            String clientMac,
+            String siteIdFromParam,
+            Integer minutesFromParam,
+            Long dataLimitMbFromParam,
+            Integer downloadSpeedKbpsFromParam,
+            Integer uploadSpeedKbpsFromParam) {
+
         if (clientMac == null || clientMac.trim().isEmpty()) {
             logger.error("MAC do cliente não pode ser nulo ou vazio para autorização.");
-            return false;
+            // CORRIGIDO: Use UnifiAuthServiceResponse.builder().build()
+            return UnifiAuthServiceResponseDTO.builder()
+                    .authorized(false)
+                    .message("MAC do cliente não fornecido.")
+                    .build();
         }
 
         String siteToUse;
@@ -66,7 +77,11 @@ public class UnifiAuthService {
 
         if (isInvalidSiteId(siteToUse)) {
             logger.error("FALHA NA AUTORIZAÇÃO: O siteId final ('{}') a ser usado na chamada da API UniFi é NULO ou inválido. MAC do cliente: {}", siteToUse, clientMac);
-            return false;
+            // CORRIGIDO: Use UnifiAuthServiceResponse.builder().build()
+            return UnifiAuthServiceResponseDTO.builder()
+                    .authorized(false)
+                    .message("Site ID do UniFi não configurado ou inválido.")
+                    .build();
         }
 
         Integer minutesToUse = (minutesFromParam != null) ? minutesFromParam : this.defaultAuthMinutesInjected;
@@ -77,10 +92,25 @@ public class UnifiAuthService {
         logger.info("Tentando autorizar MAC '{}' no site UniFi '{}' por {} minutos.", clientMac, siteToUse, minutesToUse);
 
         ClientDTO client = unifiApiClient.getClientByMac(siteToUse, clientMac);
+
+        // Inicia o Builder
+        UnifiAuthServiceResponseDTO.UnifiAuthServiceResponseDTOBuilder serviceResponseBuilder = UnifiAuthServiceResponseDTO.builder()
+                .authorized(false) // Default para false
+                .message("Falha desconhecida na autorização.");
+
+
         if (client == null || client.getId() == null || client.getId().trim().isEmpty()) {
             logger.error("Não foi possível encontrar clientId (UUID) para MAC {} no site {}. O dispositivo pode não estar conectado ou visível para o controller UniFi ainda.", clientMac, siteToUse);
-            return false;
+            serviceResponseBuilder.message("Dispositivo não encontrado ou não conectado ao UniFi.");
+            return serviceResponseBuilder.build(); // Aqui já está correto
         }
+
+        serviceResponseBuilder
+                .deviceName(client.getName() != null ? client.getName() : client.getHostname())
+                .deviceHostname(client.getHostname())
+                .deviceOsName(client.getOsName())
+                .deviceIpAddress(client.getIpAddress());
+
         String clientIdUuid = client.getId();
 
         RequestAuthorizeGuestDTO payloadParaApiV1 = RequestAuthorizeGuestDTO.builder()
@@ -93,30 +123,37 @@ public class UnifiAuthService {
 
         logger.info("Chamando UnifiApiClient.executeClientAction para UUID: '{}' no site: '{}' com payload (para API v1): {}", clientIdUuid, siteToUse, payloadParaApiV1);
 
-        // O UnifiApiClientImpl agora espera este DTO diretamente
-        ResponseDTO unifiResponse = unifiApiClient.executeClientAction(
-                siteToUse,
-                clientIdUuid,
-                payloadParaApiV1
-        );
+        try {
+            ResponseDTO unifiResponse = unifiApiClient.executeClientAction(
+                    siteToUse,
+                    clientIdUuid,
+                    payloadParaApiV1
+            );
 
-        if (unifiResponse != null && unifiResponse.getMeta() != null && "ok".equalsIgnoreCase(unifiResponse.getMeta().getRc())) {
-            logger.info("Dispositivo {} (UUID: {}) autorizado com sucesso no UniFi site {}.", clientMac, clientIdUuid, siteToUse);
-            return true;
-        } else {
-            String errorMsg = (unifiResponse != null && unifiResponse.getMeta() != null) ? unifiResponse.getMeta().getMsg() : "Erro desconhecido do UnifiApiClient";
-            logger.error("Falha ao autorizar dispositivo {} (UUID: {}) no UniFi site {}. Razão do UnifiAuthService: {}. Dados da Resposta UniFi: {}", clientMac, clientIdUuid, siteToUse, errorMsg, unifiResponse != null ? unifiResponse.getData() : "N/A");
-            return false;
+            if (unifiResponse != null && unifiResponse.getMeta() != null && "ok".equalsIgnoreCase(unifiResponse.getMeta().getRc())) {
+                logger.info("Dispositivo {} (UUID: {}) autorizado com sucesso no UniFi site {}.", clientMac, clientIdUuid, siteToUse);
+                serviceResponseBuilder
+                        .authorized(true)
+                        .message(unifiResponse.getMeta().getMsg());
+            } else {
+                String errorMsg = (unifiResponse != null && unifiResponse.getMeta() != null) ? unifiResponse.getMeta().getMsg() : "Erro desconhecido da API UniFi";
+                logger.error("Falha ao autorizar dispositivo {} (UUID: {}) no UniFi site {}. Razão do UnifiAuthService: {}. Dados da Resposta UniFi: {}", clientMac, clientIdUuid, siteToUse, errorMsg, unifiResponse != null ? unifiResponse.getData() : "N/A");
+                serviceResponseBuilder.message("Falha na autorização UniFi: " + errorMsg);
+            }
+        } catch (Exception e) {
+            logger.error("Exceção ao chamar UnifiApiClient.executeClientAction para MAC {}: {}", clientMac, e.getMessage(), e);
+            serviceResponseBuilder.message("Erro interno ao se comunicar com o UniFi Controller: " + e.getMessage());
         }
+
+        return serviceResponseBuilder.build();
     }
 
-    public boolean authorizeDevice(String clientMac) {
+    public UnifiAuthServiceResponseDTO authorizeDevice(String clientMac) {
         logger.debug("Chamando authorizeDevice (método de conveniência com 1 arg) para MAC: {}. Usará valores padrão para site e limites.", clientMac);
         return authorizeDevice(clientMac, null, null, null, null, null);
     }
 
     public boolean unauthorizeDevice(String clientMac, String siteIdFromParam) {
-        // ... (lógica similar para determinar siteToUse) ...
         String siteToUse;
         if (!isInvalidSiteId(siteIdFromParam)) {
             siteToUse = siteIdFromParam.trim();
@@ -127,7 +164,7 @@ public class UnifiAuthService {
             logger.error("FALHA NA DESAUTORIZAÇÃO: siteId ('{}') para a API UniFi é NULO ou inválido. MAC: {}", siteToUse, clientMac);
             return false;
         }
-        // ... (lógica para getClientByMac) ...
+
         ClientDTO client = unifiApiClient.getClientByMac(siteToUse, clientMac);
         if (client == null || client.getId() == null || client.getId().trim().isEmpty()) {
             logger.error("Não foi possível encontrar clientId (UUID) para MAC {} no site {} para desautorização.", clientMac, siteToUse);
@@ -137,12 +174,11 @@ public class UnifiAuthService {
 
         RequestAuthorizeGuestDTO payloadParaApiV1 = RequestAuthorizeGuestDTO.builder()
                 .action("UNAUTHORIZE_GUEST_ACCESS")
-                .build(); // Outros campos não são necessários para desautorizar
+                .build();
 
         logger.info("Chamando UnifiApiClient.executeClientAction (unauthorize) para UUID: {} no site: {} com payload: {}", clientIdUuid, siteToUse, payloadParaApiV1);
         ResponseDTO unifiResponse = unifiApiClient.executeClientAction(siteToUse, clientIdUuid, payloadParaApiV1);
 
-        // ... (tratamento da resposta) ...
         if (unifiResponse != null && unifiResponse.getMeta() != null && "ok".equalsIgnoreCase(unifiResponse.getMeta().getRc())) {
             logger.info("Dispositivo {} (UUID: {}) desautorizado com sucesso no UniFi site {}.", clientMac, clientIdUuid, siteToUse);
             return true;
@@ -152,6 +188,7 @@ public class UnifiAuthService {
             return false;
         }
     }
+
     public boolean unauthorizeDevice(String clientMac) {
         return unauthorizeDevice(clientMac, null);
     }

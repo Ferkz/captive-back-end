@@ -60,7 +60,7 @@ public class UnifiApiClientImpl implements UnifiApiClient {
     @Override
     public ClientDTO getClientByMac(String siteId, String macAddress) {
         int offset = 0;
-        int limit = 100; // Aumentado o limite para buscar mais clientes por requisição
+        int limit = 100;
         boolean moreClients = true; // Flag para controlar se há mais páginas a serem buscadas
 
         while (moreClients) {
@@ -84,7 +84,10 @@ public class UnifiApiClientImpl implements UnifiApiClient {
                         for (Map<String, Object> clientMap : clientDataList) {
                             if (clientMap.containsKey("macAddress") && clientMap.get("macAddress").toString().equalsIgnoreCase(macAddress)) {
                                 ClientDTO client = objectMapper.convertValue(clientMap, ClientDTO.class);
-                                logger.info("Cliente encontrado por filtro manual: ID (UUID)={}, MAC={}", client.getId(), client.getMacAddress());
+                                logger.info("Cliente encontrado por filtro manual: ID (UUID)={}, MAC={}",
+                                        client.getId(),
+                                        client.getHostname(),
+                                        client.getMacAddress());
                                 return client; // Cliente encontrado, retorna o DTO
                             }
                         }
@@ -94,9 +97,6 @@ public class UnifiApiClientImpl implements UnifiApiClient {
                         int totalCount = (Integer) responseMap.getOrDefault("totalCount", 0); // Total de clientes disponíveis no UniFi
 
                         if (count < limit || (offset + count) >= totalCount) {
-                            // Se a quantidade de clientes na resposta for menor que o limite,
-                            // ou se já buscamos todos os clientes com base no totalCount,
-                            // não há mais páginas a serem buscadas.
                             moreClients = false;
                         } else {
                             offset += count; // Avança o offset para a próxima página

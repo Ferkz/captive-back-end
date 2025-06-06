@@ -1,3 +1,4 @@
+/**
 package dev.codingsales.Captive.controller;
 
 import dev.codingsales.Captive.dto.response.ErrorResponseDTO;
@@ -180,3 +181,5 @@ public class CaptivePortalController {
         }
     }
 }
+
+ */

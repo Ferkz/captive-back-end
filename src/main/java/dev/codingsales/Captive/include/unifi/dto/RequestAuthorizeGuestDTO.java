@@ -2,9 +2,9 @@ package dev.codingsales.Captive.include.unifi.dto;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Builder; // If you use Lombok builder
-import lombok.Data; // If you use Lombok
-import lombok.NoArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+
 import lombok.AllArgsConstructor;
 
 @Data // Includes getters, setters, toString, equals, hashCode
@@ -26,7 +26,4 @@ public class RequestAuthorizeGuestDTO extends RequestGuestDTO {
 
     @JsonProperty("txRateLimitKbps")
     private Integer txRateLimitKbps;
-
-
-    // Add other fields as per the API documentation if needed
 }

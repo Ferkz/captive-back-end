@@ -141,4 +141,12 @@ public class AdministratorController {
         return new ResponseEntity<>(new SuccessResponseDTO(HttpStatus.OK.value(), HttpStatus.OK.name(),
                 administratorService.deleteById(id)), HttpStatus.OK);
     }
+    /**
+     * Delete administrator.
+     *
+     * @param id the id
+     * @return the administrator out DTO
+     * @throws NoContentException        the no content exception
+     * @throws InvalidOperationException
+     */
 }

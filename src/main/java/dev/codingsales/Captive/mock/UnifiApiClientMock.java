@@ -3,12 +3,12 @@ package dev.codingsales.Captive.mock;
 import dev.codingsales.Captive.include.unifi.UnifiApiClient;
 import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
 import dev.codingsales.Captive.include.unifi.dto.MetaDTO;
-// Usando SEU RequestAuthorizeGuestDTO que você adaptou
 import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
 import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
 import java.util.Collections;
@@ -16,9 +16,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-// Certifique-se que esta condição corresponde à sua propriedade em application.properties para ativar o mock
+
 @ConditionalOnProperty(name = "unifiApi.controller.mock", havingValue = "true")
 @Service
+@Primary
 public class UnifiApiClientMock implements UnifiApiClient {
     private static final Logger logger = LoggerFactory.getLogger(UnifiApiClientMock.class);
 
@@ -46,7 +47,6 @@ public class UnifiApiClientMock implements UnifiApiClient {
 
     @Override
     public ResponseDTO executeClientAction(String siteId, String clientIdUuid, RequestAuthorizeGuestDTO payload) {
-        // Usando getCmd() do seu DTO existente
         String actionString = payload.getAction();
 
         logger.info("MOCK UnifiApiClient: executeClientAction() called for siteId: {}, clientIdUuid: {}, action: {}",
@@ -62,7 +62,6 @@ public class UnifiApiClientMock implements UnifiApiClient {
         responseData.put("action", actionString); // Usando a string da ação original
         responseData.put("status", "success_mock");
 
-        // Usando getMinutes() do seu DTO existente
         if ("authorize-guest".equalsIgnoreCase(actionString)) {
             responseData.put("timeLimitMinutes", payload.getTimeLimitMinutes());
         }

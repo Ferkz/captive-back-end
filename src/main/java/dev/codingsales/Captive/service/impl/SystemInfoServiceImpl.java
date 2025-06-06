@@ -37,4 +37,5 @@ public class SystemInfoServiceImpl implements SystemInfoService{
                 SystemInfoHelper.getOSArchVersion());
         return payload;
     }
+    
 }

@@ -5,6 +5,7 @@ import dev.codingsales.Captive.dto.response.ErrorResponseDTO;
 import dev.codingsales.Captive.dto.response.SuccessResponseDTO;
 import dev.codingsales.Captive.entity.Session;
 import dev.codingsales.Captive.include.unifi.dto.GuestLoginRequestDTO;
+import dev.codingsales.Captive.include.unifi.dto.UnifiAuthServiceResponseDTO;
 import dev.codingsales.Captive.service.SessionService;
 import dev.codingsales.Captive.service.impl.UnifiAuthService;
 import dev.codingsales.Captive.util.UserAgentUtils;
@@ -81,11 +82,8 @@ public class GuestPortalController {
         registrationRequest.setOperatingSystem(UserAgentUtils.getOperatingSystem(httpRequest));
         try {
             // Verificar se já existe uma sessão ATIVA para este MAC
-            // (Esta parte da lógica já existe e pode ser complementada pelo novo fluxo de login)
             if (sessionService.existsByDeviceMac(registrationRequest.getDeviceMac())) {
                 Session existingSession = sessionService.findByDeviceMac(registrationRequest.getDeviceMac());
-
-
                 if (existingSession.getExpireLoginOn().after(new Timestamp(System.currentTimeMillis()))) {
                     logger.info("Dispositivo {} já possui uma sessão ativa. Renovando/Retornando.", registrationRequest.getDeviceMac());
 
@@ -104,9 +102,7 @@ public class GuestPortalController {
                         "Email Already Registered",
                         "Este email já possui um cadastro. Por favor, use a opção 'Login'."));
             }
-
-            // 2. Tentar autorizar o dispositivo no UniFi via UnifiAuthService
-            boolean unifiAuthorized = unifiAuthService.authorizeDevice(
+            UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
                     registrationRequest.getDeviceMac(),
                     null, // siteId (UnifiAuthService usa o defaultSiteId)
                     unifiSessionDurationMinutes, // minutes
@@ -115,22 +111,28 @@ public class GuestPortalController {
                     null  // uploadSpeedKbps
             );
 
-            if (unifiAuthorized) {
-                logger.info("Dispositivo MAC {} autorizado com sucesso no UniFi.", registrationRequest.getDeviceMac());
+            if (unifiAuthResponse.isAuthorized()) {
+                logger.info("Dispositivo MAC {} autorizado com sucesso no UniFi.",
+                        registrationRequest.getDeviceMac(),
+                        unifiAuthResponse.getDeviceHostname(),
+                        unifiAuthResponse.getDeviceName(),
+                        unifiAuthResponse.getDeviceOsName());
 
                 // 3. Salvar os dados do "convidado" e da sessão no banco de dados
                 Session newSession = new Session();
                 newSession.setFullName(registrationRequest.getFullName());
+                newSession.setDeviceName(unifiAuthResponse.getDeviceName() != null ? unifiAuthResponse.getDeviceName() : registrationRequest.getDeviceMac());
+                newSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
                 newSession.setEmail(registrationRequest.getEmail());
                 newSession.setPhoneNumber(registrationRequest.getPhoneNumber());
                 newSession.setDeviceMac(registrationRequest.getDeviceMac());
                 newSession.setDeviceIp(registrationRequest.getDeviceIp());
                 newSession.setAccesspointMac(registrationRequest.getAccessPointMac() != null ? registrationRequest.getAccessPointMac() : "N/A");
                 newSession.setBrowser(registrationRequest.getBrowser());
-                newSession.setOperatingSystem(registrationRequest.getOperatingSystem());
+                newSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
                 newSession.setAcceptedTou(registrationRequest.getAcceptTou());
 
-                // Calcular tempos de expiração para a sessão local
+
                 Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
                 Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
                 Timestamp removeDate = new Timestamp(expireDate.getTime() + TimeUnit.MINUTES.toMillis(localSessionBlockMinutes));
@@ -184,18 +186,12 @@ public class GuestPortalController {
 
         String clientMac = loginRequest.getDeviceMac();
         String clientIp = httpRequest.getRemoteAddr();
-        String apMac = loginRequest.getAccessPointMac(); // Pode vir na requisição do portal ou ser nulo
+        String apMac = loginRequest.getAccessPointMac();
 
         // Se o MAC não for fornecido, tente obtê-lo do cabeçalho X-Forwarded-For ou de algum outro lugar
         if (clientMac == null || clientMac.trim().isEmpty()) {
-            // Este é um fallback, idealmente o cliente deve enviar o MAC.
             // Para portais cativos, o MAC geralmente é interceptado/enviado pelo AP.
             logger.warn("MAC do dispositivo não fornecido na requisição de login de convidado para email: {}. Tentando buscar no cabeçalho X-Forwarded-For.", loginRequest.getEmail());
-            // Lógica para tentar extrair o MAC do request, se disponível.
-            // Por exemplo, se o AP injeta um cabeçalho X-Client-Mac:
-            // clientMac = httpRequest.getHeader("X-Client-Mac");
-            // Se não for encontrado, você pode retornar um erro ou tentar prosseguir sem ele,
-            // mas a autorização UniFi precisa do MAC.
             return ResponseEntity.badRequest().body(new ErrorResponseDTO(
                     HttpStatus.BAD_REQUEST.value(), "MAC Missing", "MAC do dispositivo não encontrado na requisição."
             ));
@@ -212,16 +208,16 @@ public class GuestPortalController {
                 logger.info("Sessão válida encontrada para email {} e MAC {}. Reautorizando no UniFi.", loginRequest.getEmail(), clientMac);
 
                 // Re-autorizar o dispositivo no UniFi (se ainda não estiver autorizado ou para renovar)
-                boolean unifiAuthorized = unifiAuthService.authorizeDevice(
+                UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
                         clientMac,
-                        null, // siteId
-                        unifiSessionDurationMinutes, // minutes
-                        null, // dataLimitMb
-                        null, // downloadSpeedKbps
-                        null  // uploadSpeedKbps
+                        null,
+                        unifiSessionDurationMinutes,
+                        null,
+                        null,
+                        null
                 );
 
-                if (unifiAuthorized) {
+                if (unifiAuthResponse.isAuthorized()) {
                     // Atualizar o timestamp da sessão local se desejar renovar a contagem de tempo visível
                     existingSession.setLastLoginOn(new Timestamp(System.currentTimeMillis()));
                     // Recalcular expireLoginOn e removeSessionOn se a autorização na UniFi renovar a duração
@@ -229,6 +225,9 @@ public class GuestPortalController {
                     Timestamp newRemoveDate = new Timestamp(newExpireDate.getTime() + TimeUnit.MINUTES.toMillis(localSessionBlockMinutes));
                     existingSession.setExpireLoginOn(newExpireDate);
                     existingSession.setRemoveSessionOn(newRemoveDate);
+                    existingSession.setDeviceName(unifiAuthResponse.getDeviceName() != null ? unifiAuthResponse.getDeviceName() : clientMac);
+                    existingSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
+                    existingSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
                     sessionService.updateSession(existingSession.getId(), existingSession);
 
                     return ResponseEntity.ok(new SuccessResponseDTO(
@@ -257,16 +256,16 @@ public class GuestPortalController {
                     logger.info("Email {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getEmail(), clientMac);
 
                     // Re-autorizar o dispositivo no UniFi (mesmo que seja um novo MAC para o email)
-                    boolean unifiAuthorized = unifiAuthService.authorizeDevice(
+                    UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
                             clientMac,
-                            null, // siteId
-                            unifiSessionDurationMinutes, // minutes
-                            null, // dataLimitMb
-                            null, // downloadSpeedKbps
-                            null  // uploadSpeedKbps
+                            null,
+                            unifiSessionDurationMinutes,
+                            null,
+                            null,
+                            null
                     );
 
-                    if (unifiAuthorized) {
+                    if (unifiAuthResponse.isAuthorized()) {
                         // Criar uma nova sessão local para o novo dispositivo do usuário existente
                         Session newSessionForExistingUser = new Session();
                         newSessionForExistingUser.setFullName(existingRegistrationByEmail.get().getFullName()); // Reutiliza dados
@@ -276,7 +275,7 @@ public class GuestPortalController {
                         newSessionForExistingUser.setDeviceIp(clientIp);
                         newSessionForExistingUser.setAccesspointMac(apMac != null ? apMac : "N/A");
                         newSessionForExistingUser.setBrowser(UserAgentUtils.getBrowser(httpRequest));
-                        newSessionForExistingUser.setOperatingSystem(UserAgentUtils.getOperatingSystem(httpRequest));
+                        newSessionForExistingUser.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
                         newSessionForExistingUser.setAcceptedTou(existingRegistrationByEmail.get().getAcceptedTou()); // Reutiliza aceitação do TOU
 
                         Timestamp lastLogin = new Timestamp(System.currentTimeMillis());

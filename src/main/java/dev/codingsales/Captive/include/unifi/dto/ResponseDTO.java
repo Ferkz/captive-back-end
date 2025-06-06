@@ -20,4 +20,6 @@ public class ResponseDTO {
 
     public void setDataList(List<Map<String, Object>> maps) {
     }
+    private String clientDeviceName;
+    private String clientHostname;
 }

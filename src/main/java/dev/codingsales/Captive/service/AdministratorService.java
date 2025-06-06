@@ -13,12 +13,12 @@ public interface AdministratorService {
      * Save administrator.
      *
      * @param administrator the administrator
-     * @param isCreate the is create
+     * @param isNew the is create
      * @return the admin user
      * @throws NoContentException the no content exception
      * @throws AlreadyExistsException
      */
-    public AdminUser saveAdministrator(AdminUser administrator, boolean isCreate) throws NoContentException, AlreadyExistsException;
+    public AdminUser saveAdministrator(AdminUser administrator, boolean isNew) throws NoContentException, AlreadyExistsException;
 
     /**
      * Gets the administrators.
@@ -83,5 +83,4 @@ public interface AdministratorService {
      * @throws AlreadyExistsException never occurs in this method
      */
     public AdministratorDTO changePassword(Long id, String password) throws NoContentException, AlreadyExistsException;
-
 }
