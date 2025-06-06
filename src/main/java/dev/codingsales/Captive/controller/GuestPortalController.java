@@ -129,7 +129,7 @@ public class GuestPortalController {
                 newSession.setDeviceIp(registrationRequest.getDeviceIp());
                 newSession.setAccesspointMac(registrationRequest.getAccessPointMac() != null ? registrationRequest.getAccessPointMac() : "N/A");
                 newSession.setBrowser(registrationRequest.getBrowser());
-                newSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
+                newSession.setOperatingSystem(registrationRequest.getOperatingSystem());
                 newSession.setAcceptedTou(registrationRequest.getAcceptTou());
 
 
