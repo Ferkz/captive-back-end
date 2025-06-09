@@ -115,8 +115,7 @@ public class GuestPortalController {
                 logger.info("Dispositivo MAC {} autorizado com sucesso no UniFi.",
                         registrationRequest.getDeviceMac(),
                         unifiAuthResponse.getDeviceHostname(),
-                        unifiAuthResponse.getDeviceName(),
-                        unifiAuthResponse.getDeviceOsName());
+                        unifiAuthResponse.getDeviceName());
 
                 // 3. Salvar os dados do "convidado" e da sessão no banco de dados
                 Session newSession = new Session();
@@ -190,7 +189,6 @@ public class GuestPortalController {
 
         // Se o MAC não for fornecido, tente obtê-lo do cabeçalho X-Forwarded-For ou de algum outro lugar
         if (clientMac == null || clientMac.trim().isEmpty()) {
-            // Para portais cativos, o MAC geralmente é interceptado/enviado pelo AP.
             logger.warn("MAC do dispositivo não fornecido na requisição de login de convidado para email: {}. Tentando buscar no cabeçalho X-Forwarded-For.", loginRequest.getEmail());
             return ResponseEntity.badRequest().body(new ErrorResponseDTO(
                     HttpStatus.BAD_REQUEST.value(), "MAC Missing", "MAC do dispositivo não encontrado na requisição."
@@ -227,7 +225,7 @@ public class GuestPortalController {
                     existingSession.setRemoveSessionOn(newRemoveDate);
                     existingSession.setDeviceName(unifiAuthResponse.getDeviceName() != null ? unifiAuthResponse.getDeviceName() : clientMac);
                     existingSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
-                    existingSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
+                   // existingSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
                     sessionService.updateSession(existingSession.getId(), existingSession);
 
                     return ResponseEntity.ok(new SuccessResponseDTO(
