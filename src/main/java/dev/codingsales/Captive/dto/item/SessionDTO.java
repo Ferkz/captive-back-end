@@ -26,6 +26,8 @@ public class SessionDTO {
     private String email;
     @NotNull @NotBlank @NotNull
     private String deviceIp;
+    @NotNull@NotBlank
+    private String cpf;
 
     @NotNull @NotBlank @NotNull
     private String accesspointMac;

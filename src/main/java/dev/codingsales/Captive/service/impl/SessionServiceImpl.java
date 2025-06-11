@@ -337,4 +337,12 @@ public class SessionServiceImpl implements SessionService{
         return this.getSessions(false, 1, 1);
     }
 
+    @Override
+    public Optional<Session> findByCpf(String cpf){
+        return sessionRepository.findByCpf(cpf);
+    }
+    @Override
+    public Optional<Session>findValidSessionByCpfAndMac(String cpf, String deviceMac){
+        return  sessionRepository.findByCpfAndDeviceMacAndExpireLoginOnGreaterThan(cpf,deviceMac, new Date());
+    }
 }

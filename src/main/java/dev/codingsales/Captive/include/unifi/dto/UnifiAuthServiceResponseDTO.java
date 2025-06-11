@@ -16,4 +16,5 @@ public class UnifiAuthServiceResponseDTO {
     private String deviceHostname;
     private String deviceOsName;
     private String deviceIpAddress;
+    private String redirectUrl;
 }

@@ -83,6 +83,11 @@ public class Session {
     @Size(min = 3, max = 100)
     private String fullName;
 
+    @NotBlank(message = "CPF é obrigatório")
+    @NotNull
+    @Column(name ="cpf")
+    private String cpf;
+
     @Column(name="email")
     @NotNull @NotBlank @Email
     @Size(max = 100)

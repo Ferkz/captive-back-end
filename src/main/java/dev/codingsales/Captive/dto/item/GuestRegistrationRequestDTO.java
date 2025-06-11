@@ -18,6 +18,11 @@ public class GuestRegistrationRequestDTO {
     @Size(max = 100)
     private String email;
 
+
+    @NotBlank(message = "CPF é obrigatório")
+    @NotNull
+    private String cpf;
+
     @NotBlank(message = "Número de telefone e obrigatorio")
     @Size(min = 10, max = 20, message = "Numero de telefone invalido")
     private String phoneNumber;

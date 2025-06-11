@@ -11,6 +11,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -67,5 +69,14 @@ public class UnifiApiClientMock implements UnifiApiClient {
         }
         mockResponse.setData(Collections.singletonList(responseData)); // Corrigido para setData
         return mockResponse;
+    }
+    @Override
+    public String generateUniFiPostAuthRedirectUrl(String siteId) {
+        // Para um mock, podemos retornar uma URL fixa que simule o redirecionamento para o Google.
+        String encodedGoogleUrl = URLEncoder.encode("http://www.google.com", StandardCharsets.UTF_8);
+        String mockRedirectUrl = String.format("http://mock-unifi-controller.com/guest/s/%s/status?authed=true&url=%s",
+                siteId, encodedGoogleUrl);
+        logger.info("MOCK UnifiApiClient: generateUniFiPostAuthRedirectUrl() called for siteId: {}. Returning mock URL: {}", siteId, mockRedirectUrl);
+        return mockRedirectUrl;
     }
 }

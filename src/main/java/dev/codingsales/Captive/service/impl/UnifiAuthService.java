@@ -132,9 +132,13 @@ public class UnifiAuthService {
 
             if (unifiResponse != null && unifiResponse.getMeta() != null && "ok".equalsIgnoreCase(unifiResponse.getMeta().getRc())) {
                 logger.info("Dispositivo {} (UUID: {}) autorizado com sucesso no UniFi site {}.", clientMac, clientIdUuid, siteToUse);
+                String finalUniFiRedirectUrl = unifiApiClient.generateUniFiPostAuthRedirectUrl(siteToUse);
+                logger.info("UnifiAuthService: URL de redirecionamento gerada para UniFi: {}", finalUniFiRedirectUrl);
+
                 serviceResponseBuilder
                         .authorized(true)
-                        .message(unifiResponse.getMeta().getMsg());
+                        .message(unifiResponse.getMeta().getMsg())
+                        .redirectUrl(finalUniFiRedirectUrl);
             } else {
                 String errorMsg = (unifiResponse != null && unifiResponse.getMeta() != null) ? unifiResponse.getMeta().getMsg() : "Erro desconhecido da API UniFi";
                 logger.error("Falha ao autorizar dispositivo {} (UUID: {}) no UniFi site {}. Razão do UnifiAuthService: {}. Dados da Resposta UniFi: {}", clientMac, clientIdUuid, siteToUse, errorMsg, unifiResponse != null ? unifiResponse.getData() : "N/A");

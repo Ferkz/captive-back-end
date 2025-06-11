@@ -17,7 +17,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.net.URLEncoder; // Será mantido no import, mas não mais usado para o filtro problemático
 import java.nio.charset.StandardCharsets; // Será mantido no import
-import java.io.UnsupportedEncodingException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -29,12 +28,15 @@ public class UnifiApiClientImpl implements UnifiApiClient {
     private String baseUrl;
     @Value("${unifi.api.key}") // Your X-API-KEY
     private String apiKey;
+    @Value("${unifi.controller.frontend.url}")
+    private String controllerFrontendUrl;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
     public UnifiApiClientImpl(RestTemplateBuilder restTemplateBuilder, ObjectMapper objectMapper) {
         this.restTemplate = restTemplateBuilder.build();
         this.objectMapper = objectMapper;
     }
+
     @Override
     public boolean login() { // This method is from the X-API-KEY version.
         if (apiKey == null || apiKey.trim().isEmpty()) {
@@ -196,5 +198,29 @@ public class UnifiApiClientImpl implements UnifiApiClient {
             customResponseDto.setMeta(meta);
         }
         return customResponseDto;
+    }
+    /**
+     * @param
+     * @return
+     */
+    @Override
+    public String generateUniFiPostAuthRedirectUrl(String siteId) {
+        String encodedGoogleUrl = URLEncoder.encode("http://www.google.com", StandardCharsets.UTF_8);
+
+        String controllerFrontendUrl;
+        if (baseUrl.contains("/proxy/network")) {
+            controllerFrontendUrl = baseUrl.substring(0, baseUrl.indexOf("/proxy/network"));
+        } else {
+            // Fallback se o baseUrl não tiver /proxy/network, ou se for a URL direta do controller
+            controllerFrontendUrl = baseUrl;
+        }
+
+
+        String redirectUrl = String.format("%s/guest/s/%s/status?authed=true&url=%s",
+                controllerFrontendUrl,
+                siteId,
+                encodedGoogleUrl);
+        logger.info("Gerada URL de redirecionamento para o UniFi: {}", redirectUrl);
+        return redirectUrl;
     }
 }

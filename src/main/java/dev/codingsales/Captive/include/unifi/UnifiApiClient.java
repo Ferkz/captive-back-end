@@ -27,4 +27,6 @@ public interface UnifiApiClient {
      * @return
      */
     ResponseDTO executeClientAction(String siteId, String clientIdUuid, RequestAuthorizeGuestDTO payload);
+
+    String generateUniFiPostAuthRedirectUrl(String siteId);
 }

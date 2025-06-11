@@ -34,6 +34,7 @@ public interface SessionRepository extends JpaRepository<Session,Long> {
     Page<Session> findAll(Pageable pageable);
 
     Optional<Session> findByEmailAndDeviceMacAndExpireLoginOnGreaterThan(String email, String deviceMac, Date currentTime);
+    Optional<Session> findByCpfAndDeviceMacAndExpireLoginOnGreaterThan(String cpf, String deviceMac, Date currentTime);
     Optional<Session> findByEmail(String email);
     /**
      * Find all browsers.
@@ -114,4 +115,6 @@ public interface SessionRepository extends JpaRepository<Session,Long> {
      * @return the list
      */
     List<Session> deleteAllByRemoveSessionOnLessThanEqual(Timestamp removeSessionOn);
+
+    Optional<Session> findByCpf(String cpf);
 }
