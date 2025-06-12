@@ -83,6 +83,7 @@ public class WebSecurityConfig {
                 "/captive/portal/**",
                 "/portal/guest/**",
                 "/api/config/vars/**",
+                "/api/terms/**"
         };
         String[] basePublic = {"/api/authenticate", "/error"};
         String[] currentTestPublicEndpoints = Stream.concat(Arrays.stream(basePublic), Arrays.stream(appPublic))

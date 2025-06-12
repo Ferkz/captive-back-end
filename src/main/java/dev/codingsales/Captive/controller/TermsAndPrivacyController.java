@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("api/admin/terms")
+@RequestMapping("api/terms")
 @CrossOrigin(origins = "*")
 public class TermsAndPrivacyController {
     @Autowired
