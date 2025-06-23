@@ -208,7 +208,7 @@ public class GuestPortalController {
 
             if (validSessionOpt.isPresent()) {
                 Session existingSession = validSessionOpt.get();
-                logger.info("Sessão válida encontrada para email {} e MAC {}. Reautorizando no UniFi.", loginRequest.getCpf(), clientMac);
+                logger.info("Sessão válida encontrada para cpf {} e MAC {}. Reautorizando no UniFi.", loginRequest.getCpf(), clientMac);
 
                 // Re-autorizar o dispositivo no UniFi (se ainda não estiver autorizado ou para renovar)
                 UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
@@ -251,13 +251,8 @@ public class GuestPortalController {
                 Optional<Session> existingRegistrationByCpf = sessionService.findByCpf(loginRequest.getCpf());
 
                 if (existingRegistrationByCpf.isPresent()) {
-                    // O email existe, mas não há sessão ativa para este MAC, ou a sessão expirou.
-                    // Isso pode significar que o usuário está tentando fazer login de um NOVO dispositivo
-                    // ou que a sessão do dispositivo anterior expirou e precisa ser re-autorizada.
 
-                    // Opção 1: Tratar como um novo dispositivo para um usuário existente
-                    // (similar ao registro, mas sem coletar todos os dados novamente)
-                    logger.info("Email {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getCpf(), clientMac);
+                    logger.info("CPF {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getCpf(), clientMac);
 
                     // Re-autorizar o dispositivo no UniFi (mesmo que seja um novo MAC para o email)
                     UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
@@ -291,7 +286,7 @@ public class GuestPortalController {
                         newSessionForExistingUser.setRemoveSessionOn(removeDate);
 
                         sessionService.addSession(newSessionForExistingUser); // Adiciona nova sessão
-                        logger.info("Nova sessão salva para cpf {} no MAC: {}.", loginRequest.getCpf(), newSessionForExistingUser.getDeviceMac());
+                        logger.info("Nova sessão salva para CPF {} no MAC: {}.", loginRequest.getCpf(), newSessionForExistingUser.getDeviceMac());
 
                         return ResponseEntity.ok(new SuccessResponseDTO(
                                 HttpStatus.OK.value(),

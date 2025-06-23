@@ -85,7 +85,7 @@ public class Session {
 
     @NotBlank(message = "CPF é obrigatório")
     @NotNull
-    @Column(name ="cpf")
+    @Column(name ="cpf", nullable = false, unique = true)
     private String cpf;
 
     @Column(name="email")
