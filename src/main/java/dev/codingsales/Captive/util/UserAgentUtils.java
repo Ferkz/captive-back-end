@@ -1,236 +1,64 @@
 package dev.codingsales.Captive.util;
 
 import jakarta.servlet.http.HttpServletRequest;
+import net.sf.uadetector.ReadableUserAgent;
+import net.sf.uadetector.UserAgentStringParser;
+import net.sf.uadetector.service.UADetectorServiceFactory;
 
 public class UserAgentUtils {
 
+    private static final UserAgentStringParser parser = UADetectorServiceFactory.getResourceModuleParser();
+
     /**
-     * Gets the browser.
+     * Extrai e analisa a string User-Agent da requisição.
      *
-     * @param request the request
-     * @return the browser
+     * @param request A requisição HTTP.
+     * @return um objeto ReadableUserAgent que contém todas as informações analisadas.
+     */
+    private static ReadableUserAgent getParsedAgent(HttpServletRequest request) {
+        String userAgentString = request.getHeader("User-Agent");
+
+        return parser.parse(userAgentString != null ? userAgentString:"");
+    }
+
+    /**
+     * Obtém o nome do navegador (ex: "Chrome Mobile", "Safari", "Edge").
+     *
+     * @param request A requisição HTTP.
+     * @return O nome do navegador.
      */
     public static String getBrowser(HttpServletRequest request) {
-        if (isBrowserFirefox(request))
-            return "Firefox";
-
-        if (isBrowserChrome(request))
-            return "Chrome";
-
-        if (isBrowserIE(request))
-            return "Internet Explorer";
-
-        if (isBrowserOpera(request))
-            return "Opera";
-
-        if (isBrowserAndroid(request))
-            return "Embedded Android";
-
-        if (isBrowserSafari(request))
-            return "Safari";
-
-        if (isPostman(request))
-            return "Postman client";
-
-        return "Unknown";
+        return getParsedAgent(request).getName();
     }
 
     /**
-     * Gets the operating system.
+     * Obtém o nome do sistema operacional de forma precisa.
+     * Resolve o problema de "Linux" vs "Android".
      *
-     * @param request the request
-     * @return the operating system
+     * @param request A requisição HTTP.
+     * @return O nome do sistema operacional (ex: "Android", "iOS", "Windows").
      */
-    public static  String getOperatingSystem(HttpServletRequest request) {
-        if (isOSLinux(request))
-            return "Linux";
-
-        if (isOSAndroid(request))
-            return "Android";
-
-        if (isOSWindows(request))
-            return "Windows";
-
-        if (isOSBlackBerry(request))
-            return "BlackBerry";
-
-        if (isOSIPhone(request))
-            return "iOS on Iphone";
-
-        if (isOSIPad(request))
-            return "iOS on Ipad";
-
-        if (isOSMAC(request))
-            return "Macintosh / Mac OS X";
-
-        if (isOSIOS(request))
-            return "iOS";
-
-        return "Unknown";
+    public static String getOperatingSystem(HttpServletRequest request) {
+        return getParsedAgent(request).getOperatingSystem().getName();
     }
 
     /**
-     * Gets the agent.
+     * Obtém a categoria do dispositivo (ex: "Smartphone", "Tablet", "Desktop").
+     *
+     * @param request A requisição HTTP.
+     * @return A categoria do dispositivo.
+     */
+    public static String getDeviceCategory(HttpServletRequest request) {
+        return getParsedAgent(request).getDeviceCategory().getName();
+    }
+
+    /**
+     * Retorna a string User-Agent original, se necessário.
      *
      * @param request the request
      * @return the agent
      */
-    public static String getAgent(HttpServletRequest request) {
+    public static String getRawAgent(HttpServletRequest request) {
         return request.getHeader("User-Agent");
-    }
-
-    // detecting browsers
-
-    /**
-     * Checks if is browser firefox.
-     *
-     * @param request the request
-     * @return true, if is browser firefox
-     */
-    public static  boolean isBrowserFirefox(HttpServletRequest request) {
-        return getAgent(request).contains("Firefox");
-    }
-
-    /**
-     * Checks if is browser chrome.
-     *
-     * @param request the request
-     * @return true, if is browser chrome
-     */
-    public static  boolean isBrowserChrome(HttpServletRequest request) {
-        return getAgent(request).contains("Chrome");
-    }
-
-
-    /**
-     * Checks if is postman.
-     *
-     * @param request the request
-     * @return true, if is postman
-     */
-    public static  boolean isPostman(HttpServletRequest request) {
-        return getAgent(request).contains("Postman");
-    }
-
-    /**
-     * Checks if is browser IE.
-     *
-     * @param request the request
-     * @return true, if is browser IE
-     */
-    public static boolean isBrowserIE(HttpServletRequest request) {
-        return getAgent(request).contains("MSIE");
-    }
-
-    /**
-     * Checks if is browser opera.
-     *
-     * @param request the request
-     * @return true, if is browser opera
-     */
-    public static boolean isBrowserOpera(HttpServletRequest request) {
-        return getAgent(request).contains("Opera");
-    }
-
-    /**
-     * Checks if is browser safari.
-     *
-     * @param request the request
-     * @return true, if is browser safari
-     */
-    public static boolean isBrowserSafari(HttpServletRequest request) {
-        return isOSIOS(request) && getAgent(request).contains("Safari");
-    }
-
-    /**
-     * Checks if is browser android.
-     *
-     * @param request the request
-     * @return true, if is browser android
-     */
-    public static boolean isBrowserAndroid(HttpServletRequest request) {
-        return isOSLinux(request) && getAgent(request).contains("Android");
-    }
-
-    // detecting Operating System
-
-    /**
-     * Checks if is OS windows.
-     *
-     * @param request the request
-     * @return true, if is OS windows
-     */
-    public static boolean isOSWindows(HttpServletRequest request) {
-        return getAgent(request).contains("Windows");
-    }
-
-    /**
-     * Checks if is OS linux.
-     *
-     * @param request the request
-     * @return true, if is OS linux
-     */
-    public static boolean isOSLinux(HttpServletRequest request) {
-        return getAgent(request).contains("Linux");
-    }
-
-    /**
-     * Checks if is OS android.
-     *
-     * @param request the request
-     * @return true, if is OS android
-     */
-    public static boolean isOSAndroid(HttpServletRequest request) {
-        return getAgent(request).contains("Android");
-    }
-
-    /**
-     * Checks if is osmac.
-     *
-     * @param request the request
-     * @return true, if is osmac
-     */
-    public static boolean isOSMAC(HttpServletRequest request) {
-        return getAgent(request).contains("Mac");
-    }
-
-    /**
-     * Checks if is OS black berry.
-     *
-     * @param request the request
-     * @return true, if is OS black berry
-     */
-    public static boolean isOSBlackBerry(HttpServletRequest request) {
-        return getAgent(request).contains("BlackBerry");
-    }
-
-    /**
-     * Checks if is os ios.
-     *
-     * @param request the request
-     * @return true, if is os ios
-     */
-    public static boolean isOSIOS(HttpServletRequest request) {
-        return isOSIPad(request) || isOSIPhone(request);
-    }
-
-    /**
-     * Checks if is OSI pad.
-     *
-     * @param request the request
-     * @return true, if is OSI pad
-     */
-    public static boolean isOSIPad(HttpServletRequest request) {
-        return isOSMAC(request) && getAgent(request).contains("iPad");
-    }
-
-    /**
-     * Checks if is OSI phone.
-     *
-     * @param request the request
-     * @return true, if is OSI phone
-     */
-    public static boolean isOSIPhone(HttpServletRequest request) {
-        return isOSMAC(request) && getAgent(request).contains("iPhone");
     }
 }
