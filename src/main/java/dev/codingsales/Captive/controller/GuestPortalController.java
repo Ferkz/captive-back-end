@@ -304,8 +304,8 @@ public class GuestPortalController {
                 } else {
                     // Email não encontrado em nenhum cadastro (nem ativo, nem expirado)
                     logger.warn("Tentativa de login de convidado com cpf {} e MAC {} sem cadastro encontrado.", loginRequest.getCpf(), clientMac);
-                    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(new ErrorResponseDTO(
-                            HttpStatus.UNAUTHORIZED.value(),
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO(
+                            HttpStatus.NOT_FOUND.value(),
                             "Registration Not Found",
                             "CPF não encontrado. Por favor, registre-se primeiro."));
                 }
