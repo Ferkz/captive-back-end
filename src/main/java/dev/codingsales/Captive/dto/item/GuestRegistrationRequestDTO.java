@@ -12,17 +12,13 @@ public class GuestRegistrationRequestDTO {
     @NotBlank(message = "nome completo e obrigatorio")
     @Size(min= 3, max = 100, message = "Nome completo deve ter entre 3 e 100 caracteres")
     private String fullName;
-
     @NotBlank(message = "Email e obrigatorio")
     @Email(message ="Formato de email inválido")
     @Size(max = 100)
     private String email;
-
-
     @NotBlank(message = "CPF é obrigatório")
     @NotNull
     private String cpf;
-
     @NotBlank(message = "Número de telefone e obrigatorio")
     @Size(min = 10, max = 20, message = "Numero de telefone invalido")
     private String phoneNumber;

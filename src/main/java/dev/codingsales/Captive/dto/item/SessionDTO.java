@@ -17,7 +17,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class SessionDTO {
     private Long id;
-
     @NotNull @NotBlank @NotNull
     private String deviceMac;
     @NotNull @NotBlank
@@ -28,27 +27,18 @@ public class SessionDTO {
     private String deviceIp;
     @NotNull@NotBlank
     private String cpf;
-
     @NotNull @NotBlank @NotNull
     private String accesspointMac;
-
     @NotNull
-
     private Timestamp lastLoginOn;
-
     @NotNull
-
     private Timestamp expireLoginOn;
-
     @NotNull
     //@JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
     private Timestamp removeSessionOn;
-
     private String browser;
-
     private String operatingSystem;
-
-
+    private String deviceName;
     /**
      * Checks if is valid.
      *
