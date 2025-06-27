@@ -53,7 +53,7 @@ public class GuestPortalController {
             BindingResult bindingResult,
             HttpServletRequest httpRequest) {
 
-        logger.info("Recebida requisição de cadastro e autorização: {}"+ registrationRequest);
+        logger.info("Recebida requisição de cadastro e autorização: {}", registrationRequest);
 
         if (bindingResult.hasErrors()) {
             String errors = bindingResult.getAllErrors().stream()
@@ -65,7 +65,7 @@ public class GuestPortalController {
                     "Validation Error",
                     errors));
         }
-        // Obter o mac e o Ip do cliente. o unifi enviar o mac
+
         String clientMac = registrationRequest.getDeviceMac();
         String clientIp = httpRequest.getRemoteAddr();
         String apMac = registrationRequest.getAccessPointMac();
@@ -75,11 +75,7 @@ public class GuestPortalController {
                     HttpStatus.BAD_REQUEST.value(), "Mac não encontrado.", "Cliente mac não encontrado na requisição"
             ));
         }
-        registrationRequest.setDeviceMac(clientMac);
-        registrationRequest.setDeviceIp(clientIp);
-        registrationRequest.setAccessPointMac(apMac);
-        registrationRequest.setBrowser(UserAgentUtils.getBrowser(httpRequest));
-        registrationRequest.setOperatingSystem(UserAgentUtils.getOperatingSystem(httpRequest));
+
         UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
                 registrationRequest.getDeviceMac(),
                 null, // siteId (UnifiAuthService usa o defaultSiteId)
@@ -88,23 +84,26 @@ public class GuestPortalController {
                 null, // downloadSpeedKbps
                 null  // uploadSpeedKbps
         );
-        try {
-            // Verificar se já existe uma sessão ATIVA para este MAC
-            if (sessionService.existsByDeviceMac(registrationRequest.getDeviceMac())) {
-                Session existingSession = sessionService.findByDeviceMac(registrationRequest.getDeviceMac());
-                if (existingSession.getExpireLoginOn().after(new Timestamp(System.currentTimeMillis()))) {
-                    logger.info("Dispositivo {} já possui uma sessão ativa. Renovando/Retornando.", registrationRequest.getDeviceMac());
 
-                    return ResponseEntity.ok(new SuccessResponseDTO(
-                            HttpStatus.OK.value(),
-                            "already active",
-                            unifiAuthResponse.getRedirectUrl(),
-                            "Seu dispositivo já está autorizado e com uma sessão ativa."));
-                } else {
-                    // Sessão existe mas expirou, pode deletar ou atualizar
-                    sessionService.deleteSession(existingSession.getId());
+        try {
+            if (sessionService.existsByDeviceMac(registrationRequest.getDeviceMac())) {
+                Optional<Session> existingSessionOpt = Optional.ofNullable(sessionService.findByDeviceMac(registrationRequest.getDeviceMac()));
+                if(existingSessionOpt.isPresent()){
+                    Session existingSession = existingSessionOpt.get();
+                    if (existingSession.getExpireLoginOn().after(new Timestamp(System.currentTimeMillis()))) {
+                        logger.info("Dispositivo {} já possui uma sessão ativa. Renovando/Retornando.", registrationRequest.getDeviceMac());
+
+                        return ResponseEntity.ok(new SuccessResponseDTO(
+                                HttpStatus.OK.value(),
+                                "already active",
+                                unifiAuthResponse.getRedirectUrl(),
+                                "Seu dispositivo já está autorizado e com uma sessão ativa."));
+                    } else {
+                        sessionService.deleteSession(existingSession.getId());
+                    }
                 }
             }
+
             if (sessionService.findByCpf(registrationRequest.getCpf()).isPresent()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponseDTO(
                         HttpStatus.CONFLICT.value(),
@@ -115,26 +114,21 @@ public class GuestPortalController {
 
             if (unifiAuthResponse.isAuthorized()) {
                 logger.info("Dispositivo MAC {} autorizado com sucesso no UniFi.",
-                        registrationRequest.getDeviceMac(),
-                        unifiAuthResponse.getDeviceHostname(),
-                        unifiAuthResponse.getDeviceName(),
-                        unifiAuthResponse.getRedirectUrl());
+                        registrationRequest.getDeviceMac());
 
-                // 3. Salvar os dados do "convidado" e da sessão no banco de dados
                 Session newSession = new Session();
                 newSession.setFullName(registrationRequest.getFullName());
                 newSession.setCpf(registrationRequest.getCpf());
-                newSession.setDeviceName(unifiAuthResponse.getDeviceName() != null ? unifiAuthResponse.getDeviceName() : registrationRequest.getDeviceMac());
-                newSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname() !=null ? registrationRequest.getDeviceName():"N/A");
+                newSession.setDeviceName(unifiAuthResponse.getDeviceName());
+                newSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
                 newSession.setEmail(registrationRequest.getEmail());
                 newSession.setPhoneNumber(registrationRequest.getPhoneNumber());
                 newSession.setDeviceMac(registrationRequest.getDeviceMac());
-                newSession.setDeviceIp(registrationRequest.getDeviceIp());
-                newSession.setAccesspointMac(registrationRequest.getAccessPointMac() != null ? registrationRequest.getAccessPointMac() : "N/A");
-                newSession.setBrowser(registrationRequest.getBrowser());
-                newSession.setOperatingSystem(registrationRequest.getOperatingSystem() != null ? registrationRequest.getOperatingSystem() : "N/A");
+                newSession.setDeviceIp(clientIp);
+                newSession.setAccesspointMac(apMac != null ? apMac : "N/A");
+                newSession.setBrowser(UserAgentUtils.getBrowser(httpRequest));
+                newSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
                 newSession.setAcceptedTou(registrationRequest.getAcceptTou());
-
 
                 Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
                 Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
@@ -168,7 +162,7 @@ public class GuestPortalController {
                     "Ocorreu um erro interno: " + e.getMessage()));
         }
     }
-    //endpoint convidados
+
     @PostMapping("/login")
     public ResponseEntity<?> guestLogin(
             @Valid @RequestBody GuestLoginRequestDTO loginRequest,
@@ -192,7 +186,6 @@ public class GuestPortalController {
         String clientIp = httpRequest.getRemoteAddr();
         String apMac = loginRequest.getAccessPointMac();
 
-        // Se o MAC não for fornecido, tente obtê-lo do cabeçalho X-Forwarded-For ou de algum outro lugar
         if (clientMac == null || clientMac.trim().isEmpty()) {
             logger.warn("MAC do dispositivo não fornecido na requisição de login de convidado para cpf: {}. Tentando buscar no cabeçalho X-Forwarded-For.", loginRequest.getCpf());
             return ResponseEntity.badRequest().body(new ErrorResponseDTO(
@@ -201,150 +194,99 @@ public class GuestPortalController {
         }
 
         try {
-            // 1. Tentar encontrar uma sessão válida para este email E MAC
-            Optional<Session> validSessionOpt = sessionService.findValidSessionByCpfAndMac(
-                    loginRequest.getCpf(),
-                    clientMac);
+            Optional<Session> existingSessionByMac = Optional.ofNullable(sessionService.findByDeviceMac(clientMac));
 
-            if (validSessionOpt.isPresent()) {
-                Session existingSession = validSessionOpt.get();
-                logger.info("Sessão válida encontrada para cpf {} e MAC {}. Reautorizando no UniFi.", loginRequest.getCpf(), clientMac);
+            if (existingSessionByMac.isPresent()){
+                logger.info("Sessão encontrada para o MAC {}. Atualizando e re-autorizando.",clientMac);
+                Session sessionToUpdate = existingSessionByMac.get();
 
-                // Re-autorizar o dispositivo no UniFi (se ainda não estiver autorizado ou para renovar)
                 UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
-                        clientMac,
-                        null,
-                        unifiSessionDurationMinutes,
-                        null,
-                        null,
-                        null
+                        clientMac, null, unifiSessionDurationMinutes, null,null,null
                 );
+                logger.info("Resposta do UnifiAuthService: {}", unifiAuthResponse);
 
-                if (unifiAuthResponse.isAuthorized()) {
-                    // Atualizar o timestamp da sessão local se desejar renovar a contagem de tempo visível
-                    existingSession.setLastLoginOn(new Timestamp(System.currentTimeMillis()));
-                    // Recalcular expireLoginOn e removeSessionOn se a autorização na UniFi renovar a duração
-                    Timestamp newExpireDate = new Timestamp(existingSession.getLastLoginOn().getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
-                    Timestamp newRemoveDate = new Timestamp(newExpireDate.getTime() + TimeUnit.MINUTES.toMillis(localSessionBlockMinutes));
-                    existingSession.setExpireLoginOn(newExpireDate);
-                    existingSession.setRemoveSessionOn(newRemoveDate);
-                    existingSession.setDeviceName(unifiAuthResponse.getDeviceName() != null ? unifiAuthResponse.getDeviceName() : clientMac);
-                    existingSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
-                   // existingSession.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
-                    sessionService.updateSession(existingSession.getId(), existingSession);
+                if(unifiAuthResponse.isAuthorized()){
+                    Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
+                    Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
+                    Timestamp removeDate = new Timestamp(expireDate.getTime() + TimeUnit.MINUTES.toMillis(localSessionBlockMinutes));
+
+                    sessionToUpdate.setLastLoginOn(lastLogin);
+                    sessionToUpdate.setExpireLoginOn(expireDate);
+                    sessionToUpdate.setRemoveSessionOn(removeDate);
+                    sessionToUpdate.setDeviceIp(clientIp);
+
+                    sessionToUpdate.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
+                    sessionToUpdate.setDeviceName(unifiAuthResponse.getDeviceName());
+                    sessionToUpdate.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
+
+                    sessionService.updateSession(sessionToUpdate.getId(),sessionToUpdate);
+                    logger.info("Sessão atualizada para o MAC: {}.", clientMac);
 
                     return ResponseEntity.ok(new SuccessResponseDTO(
                             HttpStatus.OK.value(),
-                            "Login Successful",
+                            "Session Updated",
                             unifiAuthResponse.getRedirectUrl(),
-                            "Seu acesso à internet foi reativado!"));
+                            "Seu acesso à internet foi reativado neste dispositivo!"));
                 } else {
-                    logger.error("Falha ao re-autorizar dispositivo MAC {} no UniFi após login de convidado.", clientMac);
+                    logger.error("Falha ao RE-AUTORIZAR o dispositivo MAC {} no UniFi.", clientMac);
                     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponseDTO(
                             HttpStatus.INTERNAL_SERVER_ERROR.value(),
                             "UniFi Reauthorization Failed",
-                            "Não foi possível reativar o acesso à internet no momento. Tente novamente mais tarde."));
+                            "Não foi possível reativar o acesso."));
                 }
             } else {
-                // Nenhuma sessão válida encontrada com este email e MAC.
-                // Verificando se existe uma sessão pelo mac
-                Optional<Session> existingSessionByMac = Optional.ofNullable(sessionService.findByDeviceMac(clientMac));
+                Optional<Session> existingRegistrationByCpf = sessionService.findByCpf(loginRequest.getCpf());
+                if (existingRegistrationByCpf.isPresent()) {
+                    logger.info("CPF {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getCpf(), clientMac);
 
-                if (existingSessionByMac.isPresent()){
-                    logger.info("Sessão encontrada para o MAC {}. Atualizando e re-autorizando.",clientMac);
-                    Session sessionToUpdate = existingSessionByMac.get();
-                    //re-autoriza o dispositivo no unifi
                     UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
-                            clientMac, null, unifiSessionDurationMinutes, null,null,null
+                            clientMac, null, unifiSessionDurationMinutes, null, null, null
                     );
-                    if(unifiAuthResponse.isAuthorized()){
-                        //atualiza timestamps da sessão
+
+                    if (unifiAuthResponse.isAuthorized()) {
+                        Session newSessionForExistingUser = new Session();
+                        newSessionForExistingUser.setFullName(existingRegistrationByCpf.get().getFullName());
+                        newSessionForExistingUser.setCpf(loginRequest.getCpf());
+                        newSessionForExistingUser.setPhoneNumber(existingRegistrationByCpf.get().getPhoneNumber());
+                        newSessionForExistingUser.setDeviceMac(clientMac);
+                        newSessionForExistingUser.setDeviceIp(clientIp);
+                        newSessionForExistingUser.setAccesspointMac(apMac != null ? apMac : "N/A");
+                        newSessionForExistingUser.setBrowser(UserAgentUtils.getBrowser(httpRequest));
+                        newSessionForExistingUser.setDeviceName(unifiAuthResponse.getDeviceName());
+                        newSessionForExistingUser.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
+                        newSessionForExistingUser.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
+                        newSessionForExistingUser.setAcceptedTou(existingRegistrationByCpf.get().getAcceptedTou());
+
                         Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
                         Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
                         Timestamp removeDate = new Timestamp(expireDate.getTime() + TimeUnit.MINUTES.toMillis(localSessionBlockMinutes));
-                        sessionToUpdate.setLastLoginOn(lastLogin);
-                        sessionToUpdate.setExpireLoginOn(expireDate);
-                        sessionToUpdate.setRemoveSessionOn(removeDate);
-                        //atualiza outros dados...
-                        sessionToUpdate.setDeviceIp(clientIp);
-                        sessionToUpdate.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
 
-                        sessionService.updateSession(sessionToUpdate.getId(),sessionToUpdate);
-                        logger.info("Sessão atualizada para o MAC: {}.", clientMac);
+                        newSessionForExistingUser.setLastLoginOn(lastLogin);
+                        newSessionForExistingUser.setExpireLoginOn(expireDate);
+                        newSessionForExistingUser.setRemoveSessionOn(removeDate);
+
+                        sessionService.addSession(newSessionForExistingUser);
+                        logger.info("Nova sessão salva para CPF {} no MAC: {}.", loginRequest.getCpf(), newSessionForExistingUser.getDeviceMac());
 
                         return ResponseEntity.ok(new SuccessResponseDTO(
                                 HttpStatus.OK.value(),
-                                "Session Updated",
+                                "Login Successful",
                                 unifiAuthResponse.getRedirectUrl(),
-                                "Seu acesso à internet foi reativado neste dispositivo!"));
+                                "Seu acesso à internet foi reativado para este dispositivo!"));
                     } else {
-                        // Lógica de falha na re-autorização
-                        logger.error("Falha ao RE-AUTORIZAR o dispositivo MAC {} no UniFi.", clientMac);
+                        logger.error("Falha ao autorizar NOVO dispositivo MAC {} no UniFi para cpf {}.", clientMac, loginRequest.getCpf());
                         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponseDTO(
-                                HttpStatus.NOT_FOUND.value(),
-                                "Mac not found",
-                                "Mac do dispositivo não encontrado na requisição"
-                        ));
+                                HttpStatus.INTERNAL_SERVER_ERROR.value(),
+                                "UniFi Authorization Failed",
+                                "Não foi possível liberar o acesso à internet para este dispositivo no momento."));
                     }
-                }else {
-                    Optional<Session> existingRegistrationByCpf = sessionService.findByCpf(loginRequest.getCpf());
-                    if (existingRegistrationByCpf.isPresent()) {
-                        logger.info("CPF {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getCpf(), clientMac);
-                        // Re-autorizar o dispositivo no UniFi (mesmo que seja um novo MAC para o email)
-                        UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
-                                clientMac,
-                                null,
-                                unifiSessionDurationMinutes,
-                                null,
-                                null,
-                                null
-                        );
 
-                        if (unifiAuthResponse.isAuthorized()) {
-                            // Criar uma nova sessão local para o novo dispositivo do usuário existente
-                            Session newSessionForExistingUser = new Session();
-                            newSessionForExistingUser.setFullName(existingRegistrationByCpf.get().getFullName());
-                            newSessionForExistingUser.setCpf(loginRequest.getCpf());
-                            newSessionForExistingUser.setPhoneNumber(existingRegistrationByCpf.get().getPhoneNumber());
-                            newSessionForExistingUser.setDeviceMac(clientMac); // NOVO MAC
-                            newSessionForExistingUser.setDeviceIp(clientIp);
-                            newSessionForExistingUser.setAccesspointMac(apMac != null ? apMac : "N/A");
-                            newSessionForExistingUser.setBrowser(UserAgentUtils.getBrowser(httpRequest));
-                            newSessionForExistingUser.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
-                            newSessionForExistingUser.setAcceptedTou(existingRegistrationByCpf.get().getAcceptedTou()); // Reutiliza aceitação do TOU
-
-                            Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
-                            Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
-                            Timestamp removeDate = new Timestamp(expireDate.getTime() + TimeUnit.MINUTES.toMillis(localSessionBlockMinutes));
-
-                            newSessionForExistingUser.setLastLoginOn(lastLogin);
-                            newSessionForExistingUser.setExpireLoginOn(expireDate);
-                            newSessionForExistingUser.setRemoveSessionOn(removeDate);
-
-                            sessionService.addSession(newSessionForExistingUser); // Adiciona nova sessão
-                            logger.info("Nova sessão salva para CPF {} no MAC: {}.", loginRequest.getCpf(), newSessionForExistingUser.getDeviceMac());
-
-                            return ResponseEntity.ok(new SuccessResponseDTO(
-                                    HttpStatus.OK.value(),
-                                    "Login Successful",
-                                    unifiAuthResponse.getRedirectUrl(),
-                                    "Seu acesso à internet foi reativado para este dispositivo!"));
-                        } else {
-                            logger.error("Falha ao autorizar NOVO dispositivo MAC {} no UniFi para email {}.", clientMac, loginRequest.getCpf());
-                            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(new ErrorResponseDTO(
-                                    HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                                    "UniFi Authorization Failed",
-                                    "Não foi possível liberar o acesso à internet para este dispositivo no momento. Tente novamente mais tarde."));
-                        }
-
-                    } else {
-                        // Email não encontrado em nenhum cadastro (nem ativo, nem expirado)
-                        logger.warn("Tentativa de login de convidado com cpf {} e MAC {} sem cadastro encontrado.", loginRequest.getCpf(), clientMac);
-                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO(
-                                HttpStatus.NOT_FOUND.value(),
-                                "Registration Not Found",
-                                "CPF não encontrado. Por favor, registre-se primeiro."));
-                    }
+                } else {
+                    logger.warn("Tentativa de login de convidado com cpf {} e MAC {} sem cadastro encontrado.", loginRequest.getCpf(), clientMac);
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorResponseDTO(
+                            HttpStatus.NOT_FOUND.value(),
+                            "Registration Not Found",
+                            "CPF não encontrado. Por favor, registre-se primeiro."));
                 }
             }
 

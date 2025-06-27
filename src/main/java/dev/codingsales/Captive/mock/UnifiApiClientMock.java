@@ -41,6 +41,13 @@ public class UnifiApiClientMock implements UnifiApiClient {
         mockClient.setId(UUID.randomUUID().toString());
         mockClient.setMacAddress(macAddress.toLowerCase());
         mockClient.setName("Mock Device " + macAddress.substring(Math.max(0, macAddress.length() - 5)));
+
+        // ===========================================
+        // ===== LINHA ADICIONADA PARA A CORREÇÃO ====
+        // ===========================================
+        mockClient.setOsName("MockOS"); // Adiciona um valor de teste para o SO
+        // ===========================================
+
         mockClient.setIpAddress("192.168.1.123");
         mockClient.setType("WIRELESS");
         mockClient.setConnectedAt(java.time.Instant.now().toString());
