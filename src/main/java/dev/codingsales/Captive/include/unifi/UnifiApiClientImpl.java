@@ -74,6 +74,9 @@ public class UnifiApiClientImpl implements UnifiApiClient {
                 logger.debug("Buscando clientes UniFi para o site {} (offset: {}, limit: {}). URL: {}", siteId, offset, limit, url);
                 ResponseEntity<String> responseEntity = restTemplate.exchange(url, HttpMethod.GET, entity, String.class);
 
+                logger.info("RESPOSTA CRUA DA API UNIFI (Página offset: {}): {}", offset, responseEntity.getBody());
+
+
                 if (responseEntity.getStatusCode() == HttpStatus.OK && responseEntity.getBody() != null) {
                     Map<String, Object> responseMap = objectMapper.readValue(responseEntity.getBody(), new TypeReference<Map<String, Object>>() {});
                     Object dataObject = responseMap.get("data");

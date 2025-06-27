@@ -102,7 +102,7 @@ public class UnifiAuthService {
         if (client == null || client.getId() == null || client.getId().trim().isEmpty()) {
             logger.error("Não foi possível encontrar clientId (UUID) para MAC {} no site {}. O dispositivo pode não estar conectado ou visível para o controller UniFi ainda.", clientMac, siteToUse);
             serviceResponseBuilder.message("Dispositivo não encontrado ou não conectado ao UniFi.");
-            return serviceResponseBuilder.build(); // Aqui já está correto
+            return serviceResponseBuilder.build();
         }
 
         serviceResponseBuilder
