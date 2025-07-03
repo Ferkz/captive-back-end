@@ -3,9 +3,11 @@ package dev.codingsales.Captive.controller;
 import dev.codingsales.Captive.dto.item.GuestRegistrationRequestDTO;
 import dev.codingsales.Captive.dto.response.ErrorResponseDTO;
 import dev.codingsales.Captive.dto.response.SuccessResponseDTO;
+import dev.codingsales.Captive.entity.GuestUser;
 import dev.codingsales.Captive.entity.Session;
 import dev.codingsales.Captive.include.unifi.dto.GuestLoginRequestDTO;
 import dev.codingsales.Captive.include.unifi.dto.UnifiAuthServiceResponseDTO;
+import dev.codingsales.Captive.service.GuestUserService;
 import dev.codingsales.Captive.service.SessionService;
 import dev.codingsales.Captive.service.impl.UnifiAuthService;
 import dev.codingsales.Captive.util.UserAgentUtils;
@@ -28,14 +30,15 @@ import java.util.stream.Collectors;
 
 
 @RestController
-@RequestMapping("/portal/guest") //endpoint base, publico
+@RequestMapping("/portal/guest")
 @CrossOrigin(origins = "*")
 public class GuestPortalController {
     private static final Logger logger = LoggerFactory.getLogger(GuestPortalController.class);
 
     @Autowired
-    private SessionService sessionService; //salvar os dados do convidado
-
+    private SessionService sessionService;
+    @Autowired
+    GuestUserService guestUserService;
     @Autowired
     private UnifiAuthService unifiAuthService; //interagir com a API
     @Value("${unifi.default.auth.minutes:240}") // Default se não definido
@@ -103,7 +106,7 @@ public class GuestPortalController {
                     }
                 }
             }
-            if (sessionService.findByCpf(registrationRequest.getCpf()).isPresent()) {
+            if (guestUserService.findByCpf(registrationRequest.getCpf()).isPresent()) {
                 return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorResponseDTO(
                         HttpStatus.CONFLICT.value(),
                         "Cpf Already Registered",
@@ -113,20 +116,25 @@ public class GuestPortalController {
             if (unifiAuthResponse.isAuthorized()) {
                 logger.info("Dispositivo MAC {} autorizado com sucesso no UniFi.",
                         registrationRequest.getDeviceMac());
+                GuestUser newUser = GuestUser.builder()
+                        .fullName(registrationRequest.getFullName())
+                        .cpf(registrationRequest.getCpf())
+                        .email(registrationRequest.getEmail())
+                        .phoneNumber(registrationRequest.getPhoneNumber())
+                        .acceptedTou(registrationRequest.getAcceptTou())
+                        .build();
+                GuestUser saveduser = guestUserService.save(newUser);
+                logger.info("Novo usuário criado salvado co ID: {}", saveduser.getId());
 
                 Session newSession = new Session();
-                newSession.setFullName(registrationRequest.getFullName());
-                newSession.setCpf(registrationRequest.getCpf());
+                newSession.setUser(saveduser);
                 newSession.setDeviceName(unifiAuthResponse.getDeviceName());
                 newSession.setDeviceHostName(unifiAuthResponse.getDeviceHostname());
-                newSession.setEmail(registrationRequest.getEmail());
-                newSession.setPhoneNumber(registrationRequest.getPhoneNumber());
                 newSession.setDeviceMac(registrationRequest.getDeviceMac());
                 newSession.setDeviceIp(clientIp);
                 newSession.setAccesspointMac(apMac != null ? apMac : "N/A");
                 newSession.setBrowser(UserAgentUtils.getBrowser(httpRequest));
                 newSession.setOperatingSystem(UserAgentUtils.getOperatingSystem(httpRequest));
-                newSession.setAcceptedTou(registrationRequest.getAcceptTou());
 
                 Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
                 Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));
@@ -191,27 +199,27 @@ public class GuestPortalController {
         }
 
         try {
-                Optional<Session> existingRegistrationByCpf = sessionService.findByCpf(loginRequest.getCpf());
-                if (existingRegistrationByCpf.isPresent()) {
-                    logger.info("CPF {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getCpf(), clientMac);
-
+               // Optional<Session> existingRegistrationByCpf = sessionService.findByCpf(loginRequest.getCpf());
+                Optional<GuestUser> existingUserOpt = guestUserService.findByCpf(loginRequest.getCpf());
+                if (existingUserOpt.isPresent()) {
+                    logger.info("Cadastro para o CPF {} encontrado, mas sem sessão ativa para MAC {}. Tratando como novo login para MAC.", loginRequest.getCpf(), clientMac);
+                    GuestUser user = existingUserOpt.get();
                     UnifiAuthServiceResponseDTO unifiAuthResponse = unifiAuthService.authorizeDevice(
                             clientMac, null, unifiSessionDurationMinutes, null, null, null
                     );
 
                     if (unifiAuthResponse.isAuthorized()) {
                         Session newSessionForExistingUser = new Session();
-                        newSessionForExistingUser.setFullName(existingRegistrationByCpf.get().getFullName());
-                        newSessionForExistingUser.setCpf(loginRequest.getCpf());
-                        newSessionForExistingUser.setPhoneNumber(existingRegistrationByCpf.get().getPhoneNumber());
+                        newSessionForExistingUser.setUser(user);
+
                         newSessionForExistingUser.setDeviceMac(clientMac);
                         newSessionForExistingUser.setDeviceIp(clientIp);
                         newSessionForExistingUser.setAccesspointMac(apMac != null ? apMac : "N/A");
                         newSessionForExistingUser.setBrowser(UserAgentUtils.getBrowser(httpRequest));
                         newSessionForExistingUser.setDeviceName(unifiAuthResponse.getDeviceName());
-                        newSessionForExistingUser.setDeviceHostName(UserAgentUtils.getOperatingSystem(httpRequest));
-                        newSessionForExistingUser.setOperatingSystem(unifiAuthResponse.getDeviceOsName());
-                        newSessionForExistingUser.setAcceptedTou(existingRegistrationByCpf.get().getAcceptedTou());
+                        newSessionForExistingUser.setDeviceHostName(unifiAuthResponse.getDeviceOsName());
+                        newSessionForExistingUser.setOperatingSystem(UserAgentUtils.getOperatingSystem(httpRequest));
+
 
                         Timestamp lastLogin = new Timestamp(System.currentTimeMillis());
                         Timestamp expireDate = new Timestamp(lastLogin.getTime() + TimeUnit.MINUTES.toMillis(unifiSessionDurationMinutes - localSessionHiddenMinutes));

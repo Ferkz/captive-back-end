@@ -87,16 +87,16 @@ public class SessionServiceImpl implements SessionService{
             }
         }
     }
-    @Override
-    public Optional<Session> findValidSessionByEmailAndMac(String email, String deviceMac) {
+    //@Override
+    //public Optional<Session> findValidSessionByEmailAndMac(String email, String deviceMac) {
         // Encontra a sessão onde o email e MAC correspondem e a sessão ainda não expirou
-        return sessionRepository.findByEmailAndDeviceMacAndExpireLoginOnGreaterThan(email, deviceMac, new Date());
-    }
+      //  return sessionRepository.findByEmailAndDeviceMacAndExpireLoginOnGreaterThan(email, deviceMac, new Date());
+   // }
 
-    @Override
-    public Optional<Session> findByEmail(String email) {
-        return sessionRepository.findByEmail(email);
-    }
+    //Override
+   // public Optional<Session> findByEmail(String email) {
+    //    return sessionRepository.findByEmail(email);
+    //}
     /**
      * Update session.
      *
@@ -337,12 +337,14 @@ public class SessionServiceImpl implements SessionService{
         return this.getSessions(false, 1, 1);
     }
 
-    @Override
-    public Optional<Session> findByCpf(String cpf){
-        return sessionRepository.findByCpf(cpf);
-    }
-    @Override
-    public Optional<Session>findValidSessionByCpfAndMac(String cpf, String deviceMac){
-        return  sessionRepository.findByCpfAndDeviceMacAndExpireLoginOnGreaterThan(cpf,deviceMac, new Date());
-    }
+   /**
+    *  //@Override
+    *     public Optional<Session> findByCpf(String cpf){
+    *         return sessionRepository.findByCpf(cpf);
+    *     }
+    *     //@Override
+    *     public Optional<Session>findValidSessionByCpfAndMac(String cpf, String deviceMac){
+    *         return  sessionRepository.findByCpfAndDeviceMacAndExpireLoginOnGreaterThan(cpf,deviceMac, new Date());
+    *     }
+    * */
 }

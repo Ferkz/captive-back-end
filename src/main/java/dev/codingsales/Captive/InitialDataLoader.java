@@ -20,7 +20,7 @@ import dev.codingsales.Captive.repository.RoleRepository;
 
 import javax.transaction.Transactional;
 
-@ConditionalOnProperty(prefix = "jespresso.datasource.data", name = "initialize", matchIfMissing = false, havingValue = "true")
+@ConditionalOnProperty(prefix = "jespresso.datasource.data", name = "initialize", havingValue = "true", matchIfMissing = false)
 @Component
 public class InitialDataLoader implements ApplicationListener<ContextRefreshedEvent>{
     /** The already setup. */
@@ -50,9 +50,6 @@ public class InitialDataLoader implements ApplicationListener<ContextRefreshedEv
     @Override
     @javax.transaction.Transactional
     public void onApplicationEvent(ContextRefreshedEvent event) {
-        // Verifica se as tabelas de administradores estão vazias.
-        // Para adicionar novos usuários, você pode temporariamente setar 'alreadySetup = false;'
-        // OU verificar se o usuário específico que você quer adicionar já existe.
         alreadySetup = !adminUserRepository.findAll().isEmpty();
 
         if (!alreadySetup) {
@@ -68,7 +65,7 @@ public class InitialDataLoader implements ApplicationListener<ContextRefreshedEv
             if (adminUserRepository.findByEmail("admin@localhost").isEmpty()) {
                 AdminUser defaultAdmin = new AdminUser();
                 defaultAdmin.setFullName("Default Administrator");
-                defaultAdmin.setPassword(passwordEncoder.encode("password")); // Senha padrão 'password'
+                defaultAdmin.setPassword(passwordEncoder.encode("changeit")); // Senha padrão 'password'
                 defaultAdmin.setEmail("admin@localhost");
                 defaultAdmin.setRoles(Arrays.asList(adminRole));
                 defaultAdmin.setEnabled(true);

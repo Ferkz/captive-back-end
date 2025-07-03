@@ -162,30 +162,30 @@ public interface SessionService {
     public void cleanSessionTable();
     /**
      * Tenta encontrar uma sessão válida por email e MAC.
-     * @param email o email do convidado
-     * @param deviceMac o MAC do dispositivo
-     * @return um Optional contendo a sessão se encontrada e válida, ou Optional.empty()
-     */
-    Optional<Session> findValidSessionByEmailAndMac(String email, String deviceMac);
-    /**
-     * Tenta encontrar uma sessão válida por email e MAC.
-     * @param cpf o email do convidado
-     * @param deviceMac o MAC do dispositivo
-     * @return um Optional contendo a sessão se encontrada e válida, ou Optional.empty()
-     */
-    Optional<Session> findValidSessionByCpfAndMac(String cpf, String deviceMac);
+    // * @param email o email do convidado
+    // * @param deviceMac o MAC do dispositivo
+    // * @return um Optional contendo a sessão se encontrada e válida, ou Optional.empty()
+    // */
+    //Optional<Session> findValidSessionByEmailAndMac(String email, String deviceMac);
+   // /**
+    // * Tenta encontrar uma sessão válida por email e MAC.
+    // * @param cpf o email do convidado
+     //* @param deviceMac o MAC do dispositivo
+     //* @return um Optional contendo a sessão se encontrada e válida, ou Optional.empty()
+     //*/
+   // O/tional<Session> findValidSessionByCpfAndMac(String cpf, String deviceMac);
 
-    /**
-     * Tenta encontrar uma sessão por email, independente do MAC.
-     * @param email o email do convidado
-     * @return um Optional contendo a sessão se encontrada, ou Optional.empty()
-     */
-    Optional<Session> findByEmail(String email);
+   // /**
+   //  * Tenta encontrar uma sessão por email, independente do MAC.
+    // * @param email o email do convidado
+    // * @return um Optional contendo a sessão se encontrada, ou Optional.empty()
+    // */
+    //Optional<Session> findByEmail(String email);
 
-    /**
-     * Finds a Session by the given CPF
-     * @param cpf
-     * @return An Optional containing the Session if found, or empty if not.
-     */
-     Optional<Session> findByCpf(String cpf);
+   // /**
+    // * Finds a Session by the given CPF
+   //  * @param cpf
+    // * @return An Optional containing the Session if found, or empty if not.
+    // */
+    // Optional<Session> findByCpf(String cpf);
 }

@@ -1,28 +1,21 @@
 package dev.codingsales.Captive.mapper;
 
-import org.mapstruct.Mapper;
-import org.mapstruct.factory.Mappers;
-
 import dev.codingsales.Captive.dto.item.SessionDTO;
 import dev.codingsales.Captive.entity.Session;
+import org.mapstruct.Mapper;
+import org.mapstruct.Mapping;
+import java.util.List;
 
-@Mapper
+@Mapper(componentModel = "spring")
 public interface SessionMapper {
-    SessionMapper INSTANCE = Mappers.getMapper(SessionMapper.class);
 
-    /**
-     * Session to session DTO.
-     *
-     * @param session the session
-     * @return the session DTO
-     */
+    @Mapping(source = "user.fullName", target = "fullName")
+    @Mapping(source = "user.cpf", target = "cpf")
+    @Mapping(source = "user.email", target = "email")
     SessionDTO SessionToSessionDTO(Session session);
 
-    /**
-     * Session DTO to session.
-     *
-     * @param sessionDTO the session DTO
-     * @return the session
-     */
+    List<SessionDTO> toSessionDTOList(List<Session> sessions);
+
+    @Mapping(target = "user", ignore = true)
     Session SessionDTOToSession(SessionDTO sessionDTO);
 }
