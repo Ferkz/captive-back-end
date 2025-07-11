@@ -3,7 +3,9 @@ package dev.codingsales.Captive.include.unifi;
 import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
 import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
 import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+import dev.codingsales.Captive.include.unifi.dto.UnifiDeviceDTO;
 
+import java.util.List;
 import java.util.Map;
 
 public interface UnifiApiClient {
@@ -29,4 +31,8 @@ public interface UnifiApiClient {
     ResponseDTO executeClientAction(String siteId, String clientIdUuid, RequestAuthorizeGuestDTO payload);
 
     String generateUniFiPostAuthRedirectUrl(String siteId);
+    List<UnifiDeviceDTO> listDevices(String siteId);
+    UnifiDeviceDTO getDeviceDetails(String siteId, String deviceId);
+    void restartDevice(String siteId, String deviceId);
+    void powerCyclePort(String siteId, String deviceId, int portIndex);
 }

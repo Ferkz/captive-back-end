@@ -1,10 +1,7 @@
 package dev.codingsales.Captive.mock;
 
 import dev.codingsales.Captive.include.unifi.UnifiApiClient;
-import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
-import dev.codingsales.Captive.include.unifi.dto.MetaDTO;
-import dev.codingsales.Captive.include.unifi.dto.RequestAuthorizeGuestDTO;
-import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+import dev.codingsales.Captive.include.unifi.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -13,10 +10,7 @@ import org.springframework.stereotype.Service;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 
 @ConditionalOnProperty(name = "unifiApi.controller.mock", havingValue = "true")
@@ -85,5 +79,63 @@ public class UnifiApiClientMock implements UnifiApiClient {
                 siteId, encodedGoogleUrl);
         logger.info("MOCK UnifiApiClient: generateUniFiPostAuthRedirectUrl() called for siteId: {}. Returning mock URL: {}", siteId, mockRedirectUrl);
         return mockRedirectUrl;
+    }
+
+    @Override
+    public List<UnifiDeviceDTO> listDevices(String siteId) {
+        logger.info("MOCK UnifiApiClient: listDevices() called for siteId: {}", siteId);
+        List<UnifiDeviceDTO> mockDevices = new ArrayList<>();
+
+        UnifiDeviceDTO device1 = new UnifiDeviceDTO();
+        device1.setId(UUID.randomUUID().toString());
+        device1.setName("Mock AP Sala");
+        device1.setModel("UAP-AC-PRO");
+        device1.setMacAddress("AA:BB:CC:DD:EE:01");
+        device1.setIpAddress("192.168.1.10");
+        device1.setState("ONLINE");
+        device1.setFirmwareVersion("6.5.28");
+        device1.setAdoptedAt(new Date());
+
+        UnifiDeviceDTO device2 = new UnifiDeviceDTO();
+        device2.setId(UUID.randomUUID().toString());
+        device2.setName("Mock Switch Corredor");
+        device2.setModel("USW-8-POE");
+        device2.setMacAddress("AA:BB:CC:DD:EE:02");
+        device2.setIpAddress("192.168.1.11");
+        device2.setState("OFFLINE");
+        device2.setFirmwareVersion("6.4.18");
+        device2.setAdoptedAt(new Date());
+
+        mockDevices.add(device1);
+        mockDevices.add(device2);
+
+        return mockDevices;
+    }
+
+    @Override
+    public UnifiDeviceDTO getDeviceDetails(String siteId, String deviceId) {
+        logger.info("MOCK UnifiApiClient: getDeviceDetails() called for siteId: {}, deviceId: {}", siteId, deviceId);
+        UnifiDeviceDTO device = new UnifiDeviceDTO();
+        device.setId(deviceId);
+        device.setName("Mock AP Detalhado");
+        device.setModel("U6-LR");
+        device.setMacAddress("AA:BB:CC:DD:EE:03");
+        device.setIpAddress("192.168.1.12");
+        device.setState("ONLINE");
+        device.setFirmwareVersion("6.6.55");
+        device.setAdoptedAt(new Date());
+        return device;
+    }
+
+    @Override
+    public void restartDevice(String siteId, String deviceId) {
+        logger.info("MOCK UnifiApiClient: restartDevice() called for siteId: {}, deviceId: {}", siteId, deviceId);
+        // Em um mock, não fazemos nada além de logar a ação.
+    }
+
+    @Override
+    public void powerCyclePort(String siteId, String deviceId, int portIndex) {
+        logger.info("MOCK UnifiApiClient: powerCyclePort() called for siteId: {}, deviceId: {}, portIndex: {}", siteId, deviceId, portIndex);
+        // Em um mock, não fazemos nada além de logar a ação.
     }
 }

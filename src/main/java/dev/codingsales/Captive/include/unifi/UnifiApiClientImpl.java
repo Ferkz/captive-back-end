@@ -1,8 +1,6 @@
 package dev.codingsales.Captive.include.unifi;
 
-import dev.codingsales.Captive.include.unifi.dto.ClientDTO;
-import dev.codingsales.Captive.include.unifi.dto.MetaDTO;
-import dev.codingsales.Captive.include.unifi.dto.ResponseDTO;
+import dev.codingsales.Captive.include.unifi.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -225,5 +223,58 @@ public class UnifiApiClientImpl implements UnifiApiClient {
                 encodedGoogleUrl);
         logger.info("Gerada URL de redirecionamento para o UniFi: {}", redirectUrl);
         return redirectUrl;
+    }
+    @Override
+    public List<UnifiDeviceDTO> listDevices(String siteId) {
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/devices";
+        HttpEntity<Void> entity = new HttpEntity<>(createApiHeaders());
+        try {
+            ResponseEntity<PaginatedResponseDTO<UnifiDeviceDTO>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, entity, new ParameterizedTypeReference<>() {});
+            return response.getBody() != null ? response.getBody().getData() : Collections.emptyList();
+        } catch (Exception e) {
+            logger.error("Falha ao listar dispositivos UniFi para o site {}: {}", siteId, e.getMessage());
+            return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public UnifiDeviceDTO getDeviceDetails(String siteId, String deviceId) {
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/devices/" + deviceId;
+        HttpEntity<Void> entity = new HttpEntity<>(createApiHeaders());
+        try {
+            return restTemplate.exchange(url, HttpMethod.GET, entity, UnifiDeviceDTO.class).getBody();
+        } catch (Exception e) {
+            logger.error("Falha ao obter detalhes do dispositivo UniFi {} no site {}: {}", deviceId, siteId, e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
+    public void restartDevice(String siteId, String deviceId) {
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/devices/" + deviceId + "/actions";
+        ActionRequestDTO payload = new ActionRequestDTO("RESTART");
+        HttpEntity<ActionRequestDTO> request = new HttpEntity<>(payload, createApiHeaders());
+        try {
+            restTemplate.postForEntity(url, request, Void.class);
+            logger.info("Comando RESTART enviado para o dispositivo {} no site {}", deviceId, siteId);
+        } catch (Exception e) {
+            logger.error("Falha ao reiniciar o dispositivo {} no site {}: {}", deviceId, siteId, e.getMessage());
+            throw new RuntimeException("Falha ao reiniciar dispositivo", e);
+        }
+    }
+
+    @Override
+    public void powerCyclePort(String siteId, String deviceId, int portIndex) {
+        String url = baseUrl + "/integration/v1/sites/" + siteId + "/devices/" + deviceId + "/interfaces/ports/" + portIndex + "/actions";
+        ActionRequestDTO payload = new ActionRequestDTO("POWER_CYCLE");
+        HttpEntity<ActionRequestDTO> request = new HttpEntity<>(payload, createApiHeaders());
+        try {
+            restTemplate.postForEntity(url, request, Void.class);
+            logger.info("Comando POWER_CYCLE enviado para a porta {} do dispositivo {} no site {}", portIndex, deviceId, siteId);
+        } catch (Exception e) {
+            logger.error("Falha ao executar power cycle na porta {} do dispositivo {} no site {}: {}", portIndex, deviceId, siteId, e.getMessage());
+            throw new RuntimeException("Falha ao executar power cycle na porta", e);
+        }
     }
 }
